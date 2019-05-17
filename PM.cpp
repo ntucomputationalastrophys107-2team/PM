@@ -59,8 +59,20 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
 }// FUNCTION PoissonSolver
 
 
+// FUNCTION Acceleration: Calculate the acceleration of each particle
+void Acceleration( double x[ParN][3], double a[ParN][3] ){
+    double Rho[N][N][N];  // density
+    double Phi[N][N][N];  // potential
+    MassDeposition( x, Rho );
+    PoissonSolver( Rho, Phi );
+    /* To be finished */
+
+    return;
+}// FUNCTION Acceleration
+
+
 // FUNCTION Update: Update the system by dt
-void Update( double x[ParN][3], double v[ParN][3], double phi[N][N][N] ){
+void Update( double x[ParN][3], double v[ParN][3] ){
     /* To be finished */
 
     return;
@@ -101,8 +113,6 @@ int main( int argc, char *argv[] ){
     double t = 0.0;           // time
     double ParX[ParN][3];     // position of the particle
     double ParV[ParN][3];     // velocity of the particle
-    double Rho[N][N][N]={0};  // density
-    double Phi[N][N][N]={0};  // potential
 
     double E0;                // initial energy
     double E;                 // energy
@@ -121,9 +131,7 @@ int main( int argc, char *argv[] ){
     while( t<end_time ){
         printf("Time: %f -> %f, dt=%f\n", t, t+dt, dt );
 
-        MassDeposition( ParX, Rho );
-        PoissonSolver( Rho, Phi );
-        Update( ParX, ParV, Phi );
+        Update( ParX, ParV );
         CheckBoundary( ParX, ParV );
 
         E = Energy( ParX, ParV );
