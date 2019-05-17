@@ -87,6 +87,14 @@ double Momentum( double v[ParN][3] ){
 }// FUNCTION Momentum
 
 
+// FUNCTION CheckBoundary: Deal with the particles outside the box
+void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
+    /* To be finished */
+
+    return;
+}// FUNCTION CheckBoundary
+
+
 // FUNCTION main
 int main( int argc, char *argv[] ){
     // variables
@@ -116,6 +124,7 @@ int main( int argc, char *argv[] ){
         MassDeposition( ParX, Rho );
         PoissonSolver( Rho, Phi );
         Update( ParX, ParV, Phi );
+        CheckBoundary( ParX, ParV );
 
         E = Energy( ParX, ParV );
         Eerr = (E-E0)/E0;
