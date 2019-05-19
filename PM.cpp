@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <fftw3.h>
 
 //-----------------------------------
 // A Partilce Mesh Code
@@ -53,7 +54,49 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
 
 // FUNCTION PoissonSolver: Solve the Poisson equation to get the potential
 void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
-    /* To be finished */
+    if(BC==1){
+       
+       double Ksquare[N][N][N/2+1];
+       int ni, nj;
+       for(int i=0;i<N;i++)
+          for(int j=0;j<N;j++)
+             for(int k=0;k<N/2+1;k++){
+                if( i>N/2) ni=i-N; else ni=i;
+                if( j>N/2) nj=j-N; else nj=j;
+                Ksquare[i][j][k] = (ni*2*M_PI/L)*(ni*2*M_PI/L) + (nj*2*M_PI/L)*(nj*2*M_PI/L) + (k*2*M_PI/L)*(k*2*M_PI/L);
+             }
+       Ksquare[0][0][0] = 1.0;
+    
+       fftw_complex out[N][N][N/2+1];
+       fftw_plan p, q;
+       p = fftw_plan_dft_r2c_3d( N, N, N, &rho[0][0][0], &out[0][0][0], FFTW_ESTIMATE );
+       q = fftw_plan_dft_c2r_3d( N, N, N, &out[0][0][0], &phi[0][0][0], FFTW_ESTIMATE );
+
+       fftw_execute(p);
+       for(int i=0;i<N;i++)
+          for(int j=0;j<N;j++)
+             for(int k=0;k<N/2+1;k++){
+                out[i][j][k][0] = out[i][j][k][0]/Ksquare[i][j][k]*(-1.0/(N*N*N));
+                out[i][j][k][1] = out[i][j][k][1]/Ksquare[i][j][k]*(-1.0/(N*N*N));
+             }
+       fftw_execute(q);
+
+       fftw_destroy_plan(q);
+       fftw_destroy_plan(q);
+    }
+    else if(BC==2){
+       if(Scheme_PS==1){
+          ;
+       }
+       else if(Scheme_PS==2){
+          ;
+       }
+       else
+          printf("ERROR: Unrecognized Scheme_PS!\n");
+    }
+    else
+       printf("ERROR: Unrecognized Boundary Condition!\n");
+
 
     return;
 }// FUNCTION PoissonSolver
