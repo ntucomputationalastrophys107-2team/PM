@@ -56,7 +56,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
 void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
     if( BC==1 ){             // Periodic Boundary Condition
        if( Scheme_PS == 1){  // FFT
-       
+ 
        double KK;     // K*K = Kx*Kx + Ky*Ky + Kz*Kz
        int nx, ny;
        fftw_complex rho_K[N][N][N/2+1];  // density   in K space
@@ -98,7 +98,7 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
            if( i<N && j<N && k<N ) mas_0pad[i][j][k] = rho[i][j][k]*dx*dx*dx;  // mass of cell = density * cell volume
            else mas_0pad[i][j][k] = 0.0;                                       // zero padding
 
-           if( i>=N ) nx=2*N-i; else nx=i;  // symmetrization 
+           if( i>=N ) nx=2*N-i; else nx=i;  // symmetrization
            if( j>=N ) ny=2*N-j; else ny=j;  // symmetrization
            if( k>=N ) nz=2*N-k; else nz=k;  // symmetrization
 
@@ -112,7 +112,7 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
        masXtomasK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, &mas_0pad[0][0][0], &mas_0pad_K[0][0][0], FFTW_ESTIMATE ); // Fourier Transform from mas(x) to mas(k)
        greXtogreK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, &greensfn[0][0][0], &greensfn_K[0][0][0], FFTW_ESTIMATE ); // Fourier Transform from gre(x) to gre(k)
        phiKtophiX = fftw_plan_dft_c2r_3d( 2*N, 2*N, 2*N, &phi_0pad_K[0][0][0], &phi_0pad[0][0][0], FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
-          
+
        fftw_execute( masXtomasK ); // Fourier Transform from mas(x) to mas(k)
        fftw_execute( greXtogreK ); // Fourier Transform from gre(x) to gre(k)
        for(int i=0;i<2*N;i++){
@@ -131,7 +131,7 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
        for(int j=0;j<N;j++)
        for(int k=0;k<N;k++)
            phi[i][j][k] = phi_0pad[i][j][k]; // remove the padding
-       
+
        }
        else printf("ERROR: Unsupported Scheme_PS!\n");
     }
