@@ -91,9 +91,18 @@ double Energy( double x[ParN][3], double v[ParN][3] ){
 
 // FUNCTION Momentum: Calculate the total momentum of the system
 double Momentum( double v[ParN][3] ){
-    double p;
-    /* To be finished */
-    p = 1.0;
+    double p;                // total momentum
+    double px = 0.0;         // momentum in x-direction
+    double py = 0.0;         // momentum in y-direction
+    double pz = 0.0;         // momentum in z-direction
+
+    for(int i=0;i<ParN;i++){ // sum over all particles
+       px += ParM[i]*v[i][0];
+       py += ParM[i]*v[i][1];
+       pz += ParM[i]*v[i][2];
+    }
+
+    p = sqrt( px*px + py*py + pz*pz );
 
     return p;
 }// FUNCTION Momentum
