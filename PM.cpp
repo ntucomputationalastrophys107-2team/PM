@@ -22,6 +22,7 @@ const int BC = 1;               // boundary condition ( 1=periodic, 2=isolated )
 const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT, 2=SOR )
 const int Scheme_OI = 1;        // shceme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
+void CheckBoundary( double x[ParN][3], double v[ParN][3] );
 
 
 // FUNCTION Init: Set the initial condition
@@ -39,6 +40,7 @@ void Init( double x[ParN][3], double v[ParN][3] ){
     v[1][0] = 0.0;
     v[1][1] = 0.0;
     v[1][2] = -1.0;
+
     return;
 }// FUNCTION Init
 
@@ -58,25 +60,218 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
     return;
 }// FUNCTION PoissonSolver
 
-
 // FUNCTION Acceleration: Calculate the acceleration of each particle
 void Acceleration( double x[ParN][3], double a[ParN][3] ){
     double Rho[N][N][N];  // density
     double Phi[N][N][N];  // potential
     MassDeposition( x, Rho );
     PoissonSolver( Rho, Phi );
-    /* To be finished */
+    double acc[N+1][N+1][N+1][3];
+    if (BC == 1){
+        for ( int i = 0; i < N; i = i + 1 ){
+            for ( int j = 0; j < N; j = j + 1 ){
+                for (int k = 0; k < N; k = k + 1){
+                    acc[i][j][k][0] = (0.25/dx)*(Phi[i][j][k]+Phi[i][(j-1)%N][k]+Phi[i][j][(k-1)%N]+Phi[i][(j-1)%N][(k-1)%N]-Phi[(i-1)%N][j][k]-Phi[(i-1)%N][(j-1)%N][k]-Phi[(i-1)%N][j][(k-1)%N]-Phi[(i-1)%N][(j-1)%N][(k-1)%N]);
+                    acc[i][j][k][1] = (0.25/dx)*(Phi[i][j][k]+Phi[(i-1)%N][j][k]+Phi[i][j][(k-1)%N]+Phi[(i-1)%N][j][(k-1)%N]-Phi[i][(j-1)%N][k]-Phi[(i-1)%N][(j-1)%N][k]-Phi[i][(j-1)%N][(k-1)%N]-Phi[(i-1)%N][(j-1)%N][(k-1)%N]);
+                    acc[i][j][k][2] = (0.25/dx)*(Phi[i][j][k]+Phi[(i-1)%N][j][k]+Phi[i][(j-1)%N][k]+Phi[(i-1)%N][(j-1)%N][k]-Phi[i][j][(k-1)%N]-Phi[(i-1)%N][j][(k-1)%N]-Phi[i][(j-1)%N][(k-1)%N]-Phi[(i-1)%N][(j-1)%N][(k-1)%N]);
+                }
+            }
+        }
+        for ( int j = 0; j < N; j = j + 1 ){
+            for ( int k = 0; k < N; k = k + 1 ){
+                for (int d = 0; d < 3; d = d + 1){
+                    acc[N][j][k][d] = acc[1][j][k][d];
+                }
+            }
+        }
+        for ( int i = 0; i < N+1; i = i + 1 ){
+            for ( int k = 0; k < N; k = k + 1 ){
+                for (int d = 0; d < 3; d = d + 1){
+                    acc[i][N][k][d] = acc[i][0][k][d];
+                }
+            }
+        }
+        for ( int i = 0; i < N+1; i = i + 1 ){
+            for ( int j = 0; j < N+1; j = j + 1 ){
+                for (int d = 0; d < 3; d = d + 1){
+                    acc[i][j][N][d] = acc[i][j][0][d];
+                }
+            }
+        }
+    }////acc for periodic BC
+    if (BC == 2){
+        for ( int i = 1; i < N; i = i + 1 ){
+            for ( int j = 1; j < N; j = j + 1 ){
+                for (int k = 1; k < N; k = k + 1){
+                    acc[i][j][k][0] = (0.25/dx)*(Phi[i][j][k]+Phi[i][j-1][k]+Phi[i][j][k-1]+Phi[i][j-1][k-1]-Phi[i-1][j][k]-Phi[i-1][j-1][k]-Phi[i-1][j][k-1]-Phi[i-1][j-1][k-1]);
+                    acc[i][j][k][1] = (0.25/dx)*(Phi[i][j][k]+Phi[i-1][j][k]+Phi[i][j][k-1]+Phi[i-1][j][k-1]-Phi[i][j-1][k]-Phi[i-1][j-1][k]-Phi[i][j-1][k-1]-Phi[i-1][j-1][k-1]);
+                    acc[i][j][k][2] = (0.25/dx)*(Phi[i][j][k]+Phi[i-1][j][k]+Phi[i][j-1][k]+Phi[i-1][j-1][k]-Phi[i][j][k-1]-Phi[i-1][j][k-1]-Phi[i][j-1][k-1]-Phi[i-1][j-1][k-1]);
+                }
+            }
+        }
+        for ( int i = 1; i < N; i = i + 1 ){
+            for ( int j = 1; j < N; j = j + 1 ){
+                for ( int d = 0; j < 3; d = d + 1 ){
+                    acc[0][i][j][d]   = 2*acc[1][i][j][d]-acc[2][i][j][d];
+                    acc[N+1][i][j][d] = 2*acc[N][i][j][d]-acc[N-1][i][j][d];
+                    acc[i][j][0][d]   = 2*acc[i][j][1][d]-acc[i][j][2][d];
+                    acc[i][j][N+1][d] = 2*acc[i][j][N][d]-acc[i][j][N-1][d];
+                    acc[i][0][j][d]   = 2*acc[i][1][j][d]-acc[i][2][j][d];
+                    acc[i][N+1][j][d] = 2*acc[i][N][j][d]-acc[i][N-1][j][d];
+                }
+            }
+        }
+        for ( int i = 1; i < N; i = i + 1 ){
+            for ( int d = 0; d < 3; d = d + 1 ){
+                acc[i][0][0][d]      = 0.5*(2*acc[i][1][0][d]  -acc[i][2][0][d]    +2*acc[i][0][1][d]  -acc[i][0][2][d]);
+                acc[i][N+1][N+1][d]  = 0.5*(2*acc[i][N][N+1][d]-acc[i][N-1][N+1][d]+2*acc[i][N+1][N][d]-acc[i][N+1][N-1][d]);
+                acc[0][i][0][d]      = 0.5*(2*acc[1][i][0][d]  -acc[2][i][0][d]    +2*acc[0][i][1][d]  -acc[0][i][2][d]);
+                acc[N+1][i][N+1][d]  = 0.5*(2*acc[N][i][N+1][d]-acc[N-1][i][N+1][d]+2*acc[N+1][i][N][d]-acc[N+1][i][N-1][d]);
+                acc[0][0][i][d]      = 0.5*(2*acc[1][0][i][d]  -acc[2][0][i][d]    +2*acc[0][1][i][d]  -acc[0][2][i][d]);
+                acc[N+1][N+1][i][d]  = 0.5*(2*acc[N][N+1][i][d]-acc[N-1][N+1][i][d]+2*acc[N+1][N][i][d]-acc[N+1][N-1][i][d]);
+            }
+        }
+        for ( int d = 0; d < 3; d = d + 1 ){
+            acc[0][0][0][d]       = (2*acc[1][0][0][d]    -acc[2][0][0][d]      +2*acc[0][1][0][d]    -acc[0][2][0][d]      +2*acc[0][0][1][d]    -acc[0][0][2][d]      )/3;
+            acc[0][0][N+1][d]     = (2*acc[1][0][N+1][d]  -acc[2][0][N+1][d]    +2*acc[0][1][N+1][d]  -acc[0][2][N+1][d]    +2*acc[0][0][N][d]    -acc[0][0][N-1][d]    )/3;
+            acc[0][N+1][0][d]     = (2*acc[1][N+1][0][d]  -acc[2][N+1][0][d]    +2*acc[0][N][0][d]    -acc[0][N-1][0][d]    +2*acc[0][N+1][1][d]  -acc[0][N+1][2][d]    )/3;
+            acc[0][N+1][N+1][d]   = (2*acc[1][N+1][N+1][d]-acc[2][N+1][N+1][d]  +2*acc[0][N][N+1][d]  -acc[0][N-1][N+1][d]  +2*acc[0][N+1][N][d]  -acc[0][N+1][N-1][d]  )/3;
+            acc[N+1][0][0][d]     = (2*acc[N][0][0][d]    -acc[N-1][0][0][d]    +2*acc[N+1][1][0][d]  -acc[N+1][2][0][d]    +2*acc[N+1][0][1][d]  -acc[N+1][0][2][d]    )/3;
+            acc[N+1][0][N+1][d]   = (2*acc[N][0][N+1][d]  -acc[N-1][0][N+1][d]  +2*acc[N+1][1][N+1][d]-acc[N+1][2][N+1][d]  +2*acc[N+1][0][N][d]  -acc[N+1][0][N-1][d]  )/3;
+            acc[N+1][N+1][0][d]   = (2*acc[N][N+1][0][d]  -acc[N-1][N+1][0][d]  +2*acc[N+1][N][0][d]  -acc[N+1][N-1][0][d]  +2*acc[N+1][N+1][1][d]-acc[N+1][N+1][2][d]  )/3;
+            acc[N+1][N+1][N+1][d] = (2*acc[N][N+1][N+1][d]-acc[N-1][N+1][N+1][d]+2*acc[N+1][N][N+1][d]-acc[N+1][N-1][N+1][d]+2*acc[N+1][N+1][N][d]-acc[N+1][N+1][N-1][d])/3;
+        }
+        for ( int i = 1; i < N; i = i + 1 ){
+            for ( int d = 0; d < 3; d = d + 1 ){
+                acc[i][0][0][d]      = 0.5*(2*acc[i][1][0][d]  -acc[i][2][0][d]    +2*acc[i][0][1][d]  -acc[i][0][2][d]);
+                acc[i][N+1][N+1][d]  = 0.5*(2*acc[i][N][N+1][d]-acc[i][N-1][N+1][d]+2*acc[i][N+1][N][d]-acc[i][N+1][N-1][d]);
+                acc[0][i][0][d]      = 0.5*(2*acc[1][i][0][d]  -acc[2][i][0][d]    +2*acc[0][i][1][d]  -acc[0][i][2][d]);
+                acc[N+1][i][N+1][d]  = 0.5*(2*acc[N][i][N+1][d]-acc[N-1][i][N+1][d]+2*acc[N+1][i][N][d]-acc[N+1][i][N-1][d]);
+                acc[0][0][i][d]      = 0.5*(2*acc[1][0][i][d]  -acc[2][0][i][d]    +2*acc[0][1][i][d]  -acc[0][2][i][d]);
+                acc[N+1][N+1][i][d]  = 0.5*(2*acc[N][N+1][i][d]-acc[N-1][N+1][i][d]+2*acc[N+1][N][i][d]-acc[N+1][N-1][i][d]);
+            }
+        }
+    }////acc for isolated BC
 
+    for ( int i = 0; i < ParN; i = i + 1 ){
+        int ParIndex[3];
+        double ParFrax[3];
+        if (x[i][0] > L || x[i][0] < 0 || x[i][1] > L || x[i][1] < 0 || x[i][2] > L || x[i][2] < 0 ){
+            for ( int d = 0; d < 3; d = d+1){
+                a[i][d] = 0;
+            }
+        }
+        else{
+            for ( int d = 0; d < 3; d = d+1){
+                ParIndex[d] = int(x[i][d]/dx);
+                ParFrax[d] = x[i][d]/dx - int(x[i][d]/dx);
+            }
+            a[i][0] = 0.25*(1-ParFrax[0])*(acc[ParIndex[0]  ][ParIndex[1]+1][ParIndex[2]+1][0]+acc[ParIndex[0]  ][ParIndex[1]+1][ParIndex[2]  ][0]+acc[ParIndex[0]  ][ParIndex[1]  ][ParIndex[2]+1][0]+acc[ParIndex[0]  ][ParIndex[1]  ][ParIndex[2]  ][0])
+                     +0.25*    ParFrax[0]*(acc[ParIndex[0]+1][ParIndex[1]+1][ParIndex[2]+1][0]+acc[ParIndex[0]+1][ParIndex[1]+1][ParIndex[2]  ][0]+acc[ParIndex[0]+1][ParIndex[1]  ][ParIndex[2]+1][0]+acc[ParIndex[0]+1][ParIndex[1]  ][ParIndex[2]  ][0]);
+            a[i][1] = 0.25*(1-ParFrax[1])*(acc[ParIndex[0]+1][ParIndex[1]  ][ParIndex[2]+1][1]+acc[ParIndex[0]+1][ParIndex[1]  ][ParIndex[2]  ][1]+acc[ParIndex[0]  ][ParIndex[1]  ][ParIndex[2]+1][1]+acc[ParIndex[0]  ][ParIndex[1]  ][ParIndex[2]  ][1])
+                     +0.25*    ParFrax[1]*(acc[ParIndex[0]+1][ParIndex[1]+1][ParIndex[2]+1][1]+acc[ParIndex[0]+1][ParIndex[1]+1][ParIndex[2]  ][1]+acc[ParIndex[0]  ][ParIndex[1]+1][ParIndex[2]+1][1]+acc[ParIndex[0]  ][ParIndex[1]+1][ParIndex[2]  ][1]);
+            a[i][2] = 0.25*(1-ParFrax[2])*(acc[ParIndex[0]+1][ParIndex[1]+1][ParIndex[2]  ][2]+acc[ParIndex[0]+1][ParIndex[1]  ][ParIndex[2]  ][2]+acc[ParIndex[0]  ][ParIndex[1]+1][ParIndex[2]  ][2]+acc[ParIndex[0]  ][ParIndex[1]  ][ParIndex[2]  ][2])
+                     +0.25*    ParFrax[2]*(acc[ParIndex[0]+1][ParIndex[1]+1][ParIndex[2]+1][2]+acc[ParIndex[0]+1][ParIndex[1]  ][ParIndex[2]+1][2]+acc[ParIndex[0]  ][ParIndex[1]+1][ParIndex[2]+1][2]+acc[ParIndex[0]  ][ParIndex[1]  ][ParIndex[2]+1][2]);
+       }
+    }
     return;
 }// FUNCTION Acceleration
 
 
 // FUNCTION Update: Update the system by dt
 void Update( double x[ParN][3], double v[ParN][3] ){
+   double a[ParN][3];     // acceleration of the particle
+   if (Scheme_OI == 0){
+     Acceleration( x, a );
+     for ( int i = 0; i < ParN; i = i + 1 ){
+        for ( int d = 0; d < 3; d = d + 1 ){
+           v[i][d] += a[i][d]*dt/2;
+        }
+     } //////kick
+     for ( int i = 0; i < ParN; i = i + 1 ){
+        for ( int d = 0; d < 3; d = d + 1 ){
+           x[i][d] += v[i][d]*dt/2;
+        }
+     } /////Drift
+     CheckBoundary( x, v );
+     Acceleration( x,  a );
+     for ( int i = 0; i < ParN; i = i + 1 ){
+        for ( int d = 0; d < 3; d = d + 1 ){
+           v[i][d] += a[i][d]*dt/2;
+        }
+     } /////Kick
+   } ///KDK
+   else if (Scheme_OI == 1){
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for ( int d = 0; d < 3; d = d + 1 ){
+            x[i][d] += v[i][d]*dt/2;
+         }
+      } /////Drift
+      CheckBoundary( x, v );
+      Acceleration( x, a );
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for ( int d = 0; d < 3; d = d + 1 ){
+            v[i][d] += a[i][d]*dt/2;
+         }
+      } /////Kick
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for ( int d = 0; d < 3; d = d + 1 ){
+            x[i][d] += v[i][d]*dt/2;
+         }
+      } /////Drift
+   } ///DKD
+   else if (Scheme_OI == 2){
+      double k[4][ParN][3][2];   ////k_n,Par_ID,dim,pos/vel
+      Acceleration( x, a );
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for (int d = 0; d < 3; d = d+1){
+           k[0][i][d][0] = v[i][d];
+           k[0][i][d][1] = a[i][d];
+           x[i][d] += (dt/2)* k[0][i][d][0];
+           v[i][d] += (dt/2)* k[0][i][d][1];
+         }
+      } /////////// Step1
+      CheckBoundary( x, v );
+      Acceleration( x, a );
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for (int d = 0; d < 3; d = d+1){
+            k[1][i][d][0] = v[i][d];
+            k[1][i][d][1] = a[i][d];
+            x[i][d] += (dt/2)* k[1][i][d][0] -(dt/2)* k[0][i][d][0];
+            v[i][d] += (dt/2)* k[1][i][d][1] -(dt/2)* k[0][i][d][1];
+         }
+      }/////////// Step2
+      CheckBoundary( x, v );
+      Acceleration( x, a );
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for (int d = 0; d < 3; d = d+1){
+            k[2][i][d][0] = v[i][d];
+            k[2][i][d][1] = a[i][d];
+            x[i][d] += (dt)* k[2][i][d][0] -(dt/2)* k[1][i][d][0];
+            v[i][d] += (dt)* k[2][i][d][1] -(dt/2)* k[1][i][d][1];
+         }
+      }/////////// Step3
+      CheckBoundary( x, v );
+      Acceleration( x, a );
+      for ( int i = 0; i < ParN; i = i + 1 ){
+         for (int d = 0; d < 3; d = d+1){
+            k[3][i][d][0] = v[i][d];
+            k[3][i][d][1] = a[i][d];
+            x[i][d] += (dt/6)*(k[0][i][d][0] + 2*k[1][i][d][0] +2*k[2][i][d][0] + k[3][i][d][0]) -(dt)* k[2][i][d][0];
+            v[i][d] += (dt/6)*(k[0][i][d][1] + 2*k[1][i][d][1] +2*k[2][i][d][1] + k[3][i][d][1]) -(dt)* k[2][i][d][1];
+         }
+      }/////////// Step4
+   } ///RK4
+   else {
+     printf("Wrong Scheme_OI Mode");
+   }
     /* To be finished */
 
     return;
 }// FUNCTION Update
+
+
+
 
 
 // FUNCTION Energy: Calculate the total energy of the system
@@ -101,7 +296,32 @@ double Momentum( double v[ParN][3] ){
 
 // FUNCTION CheckBoundary: Deal with the particles outside the box
 void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
-    /* To be finished */
+    for ( int i = 0; i < ParN; i = i + 1 ){
+       if (BC == 1){
+          for ( int d = 0; i < 3; d = d + 1 ){
+             if (x[i][d] < 0 ){
+                x[i][d] += L;
+             }
+             if (x[i][d] > L ){
+                x[i][d] -= L;
+             }
+          }
+       }
+       else if (BC == 2){
+          if (x[i][0] < 0 || x[i][1] < 0 || x[i][2] < 0 || x[i][0] > L || x[i][1] > L || x[i][2] > L ){
+             x[i][0] = 1000*L;
+             x[i][1] = 1000*L;
+             x[i][2] = 1000*L;
+             v[i][0] = 0;
+             v[i][0] = 0;
+             v[i][0] = 0;
+          }
+       }
+       else {
+          printf("Wrong BC");
+       }
+    }
+
 
     return;
 }// FUNCTION CheckBoundary
@@ -113,7 +333,6 @@ int main( int argc, char *argv[] ){
     double t = 0.0;           // time
     double ParX[ParN][3];     // position of the particle
     double ParV[ParN][3];     // velocity of the particle
-
     double E0;                // initial energy
     double E;                 // energy
     double Eerr;              // energy conservation error
