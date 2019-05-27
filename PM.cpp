@@ -45,12 +45,44 @@ void Init( double x[ParN][3], double v[ParN][3] ){
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
 void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
-    if(Scheme_MD==1){
+    if(Scheme_MD==1){ //NGP
         for(int n=0;n<ParN;n++){
             rho[int(x[n][0]/dx)][int(x[n][1]/dx)][int(x[n][2]/dx)]=ParM[n];
         } 
     }
-
+    if(Scheme_MD==2){  //CIC
+        int index_x[8];
+        int index_y[8];
+        int index_z[8];
+        double weighting[3][2];
+        for (int n=0;n<ParN;n++){
+            for(int i=0;i<8;i++){
+                if(i<4){
+                    index_x[i]=int(x[n][0]/dx);
+                    index_y[i]=int(x[n][1]/dx);
+                    index_z[i]=int(x[n][2]/dx);
+                }
+                if(i>=4){
+                    index_x[i]=int(x[n][0]/dx)+1;
+                    index_y[i]=int(x[n][1]/dx)+1;
+                    index_z[i]=int(x[n][2]/dx)+1;
+                }
+            }
+            for(int dim=0;dim<3;dim++){
+                if(x[n][dim]-int(x[n][dim]/dx)*dx<=dx*0.5){
+                    weighting[dim][0]=double((int(x[n][dim]/dx)+0.5)*dx-x[n][dim]);
+                    weighting[dim][1]=double(-(int(x[n][dim]/dx)-0.5)*dx+x[n][dim]);
+                }
+                if(x[n][dim]-int(x[n][dim]/dx)*dx>dx*0.5){
+                    weighting[dim][0]=double((int(x[n][dim]/dx)+1.5)*dx-x[n][dim]);
+                    weighting[dim][1]=double(-(int(x[n][dim]/dx)+0.5)*dx+x[n][dim]);
+                }
+            }
+            for(int i=0;i<8;i++){
+                rho[index_x[i]][index_y[i]][index_z[i]]+=weighting[0][i%2]*weighting[1][i%2]*weighting[2][i%2]*ParM[n]/pow(dx,3);
+            }
+        }            
+    }
     return;
 }// FUNCTION MassDeposition
 
