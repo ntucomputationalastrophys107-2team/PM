@@ -45,7 +45,11 @@ void Init( double x[ParN][3], double v[ParN][3] ){
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
 void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
-    /* To be finished */
+    if(Scheme_MD==1){
+        for(int n=0;n<ParN;n++){
+            rho[int(x[n][0]/dx)][int(x[n][1]/dx)][int(x[n][2]/dx)]=ParM[n];
+        } 
+    }
 
     return;
 }// FUNCTION MassDeposition
