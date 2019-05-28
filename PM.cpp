@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <fftw3.h>
 
 //-----------------------------------
 // A Partilce Mesh Code
@@ -20,7 +21,7 @@ const double ParM[ParN]={ 1.0, 1.0};  // mass of each particle
 // schemes
 const int BC = 1;               // boundary condition ( 1=periodic, 2=isolated )
 const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
-const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT, 2=SOR )
+const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
 const int Scheme_OI = 1;        // shceme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
 
@@ -53,7 +54,88 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
 
 // FUNCTION PoissonSolver: Solve the Poisson equation to get the potential
 void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
-    /* To be finished */
+    if( BC==1 ){             // Periodic Boundary Condition
+       if( Scheme_PS == 1){  // FFT
+ 
+       double KK;     // K*K = Kx*Kx + Ky*Ky + Kz*Kz
+       int nx, ny;
+       fftw_complex rho_K[N][N][N/2+1];  // density   in K space
+       fftw_complex phi_K[N][N][N/2+1];  // potential in K space
+       fftw_plan rhoXtorhoK, phiKtophiX;
+       rhoXtorhoK = fftw_plan_dft_r2c_3d( N, N, N, &rho[0][0][0], &rho_K[0][0][0], FFTW_ESTIMATE ); // Fourier Transform from rho(x) to rho(k)
+       phiKtophiX = fftw_plan_dft_c2r_3d( N, N, N, &phi_K[0][0][0], &phi[0][0][0], FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
+
+       fftw_execute( rhoXtorhoK ); // Fourier Transform from rho(x) to rho(k)
+       for(int i=0;i<N;i++){
+       for(int j=0;j<N;j++){
+       for(int k=0;k<N/2+1;k++){
+           if( i>N/2) nx=i-N; else nx=i;
+           if( j>N/2) ny=j-N; else ny=j;
+           KK = (nx*2*M_PI/L)*(nx*2*M_PI/L) + (ny*2*M_PI/L)*(ny*2*M_PI/L) + (k*2*M_PI/L)*(k*2*M_PI/L); // K*K = Kx*Kx + Ky*Ky + Kz*Kz
+           phi_K[i][j][k][0] = rho_K[i][j][k][0]/KK*4.0*M_PI*G*(-1.0/(N*N*N)); // real part phi(k) = -4*Pi*G*rho(k)/k^2 and normalize by 1/N^3
+           phi_K[i][j][k][1] = rho_K[i][j][k][1]/KK*4.0*M_PI*G*(-1.0/(N*N*N)); // imag part phi(k) = -4*Pi*G*rho(k)/k^2 and normalize by 1/N^3
+       }}}
+       phi_K[0][0][0][0] = 0.0;       // set DC to 0
+       phi_K[0][0][0][1] = 0.0;       // set DC to 0
+       fftw_execute( phiKtophiX ); // Inverse Fourier Transform from phi(k) to phi(x)
+
+       fftw_destroy_plan( rhoXtorhoK );
+       fftw_destroy_plan( phiKtophiX );
+
+       }
+       else printf("ERROR: Unsupported Scheme_PS!\n");
+    }
+    else if( BC==2 ){        // Isolated Boundary Condition
+       if( Scheme_PS == 1){  // FFT
+
+       double mas_0pad[2*N][2*N][2*N]; // zero padding on the mass array
+       double greensfn[2*N][2*N][2*N]; // symmetric discrete Green's function -1/r
+       double phi_0pad[2*N][2*N][2*N]; // zero padding on the potential array
+       int nx,ny,nz;                   // number of distance interval
+       for(int i=0;i<2*N;i++){
+       for(int j=0;j<2*N;j++){
+       for(int k=0;k<2*N;k++){
+           if( i<N && j<N && k<N ) mas_0pad[i][j][k] = rho[i][j][k]*dx*dx*dx;  // mass of cell = density * cell volume
+           else mas_0pad[i][j][k] = 0.0;                                       // zero padding
+
+           if( i>=N ) nx=2*N-i; else nx=i;  // symmetrization
+           if( j>=N ) ny=2*N-j; else ny=j;  // symmetrization
+           if( k>=N ) nz=2*N-k; else nz=k;  // symmetrization
+
+           if( i==0 && j==0 && k==0) greensfn[i][j][k] = 0.0;  // ignore self force
+           else greensfn[i][j][k] = -1.0/(dx*sqrt( nx*nx + ny*ny + nz*nz )); // -1/r
+       }}}
+       fftw_complex mas_0pad_K[2*N][2*N][N+1];  // mass in K space
+       fftw_complex greensfn_K[2*N][2*N][N+1];  // Green's function in K space
+       fftw_complex phi_0pad_K[2*N][2*N][N+1];  // potential in K space
+       fftw_plan masXtomasK, greXtogreK, phiKtophiX;
+       masXtomasK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, &mas_0pad[0][0][0], &mas_0pad_K[0][0][0], FFTW_ESTIMATE ); // Fourier Transform from mas(x) to mas(k)
+       greXtogreK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, &greensfn[0][0][0], &greensfn_K[0][0][0], FFTW_ESTIMATE ); // Fourier Transform from gre(x) to gre(k)
+       phiKtophiX = fftw_plan_dft_c2r_3d( 2*N, 2*N, 2*N, &phi_0pad_K[0][0][0], &phi_0pad[0][0][0], FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
+
+       fftw_execute( masXtomasK ); // Fourier Transform from mas(x) to mas(k)
+       fftw_execute( greXtogreK ); // Fourier Transform from gre(x) to gre(k)
+       for(int i=0;i<2*N;i++){
+       for(int j=0;j<2*N;j++){
+       for(int k=0;k<N+1;k++){
+           phi_0pad_K[i][j][k][0] = G*( mas_0pad_K[i][j][k][0]*greensfn_K[i][j][k][0]-mas_0pad_K[i][j][k][1]*greensfn_K[i][j][k][1])*(1.0/(2*N*2*N*2*N));// real part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
+           phi_0pad_K[i][j][k][1] = G*( mas_0pad_K[i][j][k][0]*greensfn_K[i][j][k][1]+mas_0pad_K[i][j][k][1]*greensfn_K[i][j][k][0])*(1.0/(2*N*2*N*2*N));// imag part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
+       }}}
+       fftw_execute( phiKtophiX ); // Inverse Fourier Transform from phi(k) to phi(x)
+
+       fftw_destroy_plan( masXtomasK );
+       fftw_destroy_plan( greXtogreK );
+       fftw_destroy_plan( phiKtophiX );
+
+       for(int i=0;i<N;i++)
+       for(int j=0;j<N;j++)
+       for(int k=0;k<N;k++)
+           phi[i][j][k] = phi_0pad[i][j][k]; // remove the padding
+
+       }
+       else printf("ERROR: Unsupported Scheme_PS!\n");
+    }
+    else printf("ERROR: Unsuppoted Boundary Condition!\n");
 
     return;
 }// FUNCTION PoissonSolver
