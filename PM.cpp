@@ -178,6 +178,7 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
     return;
 }// FUNCTION PoissonSolver
 
+
 // FUNCTION Acceleration: Calculate the acceleration of each particle
 void Acceleration( double x[ParN][3], double a[ParN][3] ){
     double Rho[N][N][N];  // density
@@ -389,9 +390,6 @@ void Update( double x[ParN][3], double v[ParN][3] ){
 }// FUNCTION Update
 
 
-
-
-
 // FUNCTION Energy: Calculate the total energy of the system
 double Energy( double x[ParN][3], double v[ParN][3] ){
     double e;                // total energy
@@ -472,6 +470,7 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
     return;
 }// FUNCTION CheckBoundary
 
+
 // FUNCTION OutputData: Output the results into files
 void OutputData( double t, double x[ParN][3], double e, double eerror, double p, double perror ){
     FILE *fp;
@@ -500,6 +499,7 @@ void OutputData( double t, double x[ParN][3], double e, double eerror, double p,
 
     return;
 }// FUNCTION OutputData
+
 
 // FUNCTION main
 int main( int argc, char *argv[] ){
