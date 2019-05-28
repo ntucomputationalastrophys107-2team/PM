@@ -436,6 +436,34 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
     return;
 }// FUNCTION CheckBoundary
 
+// FUNCTION OutputData: Output the results into files
+void OutputData( double t, double x[ParN][3], double e, double eerror, double p, double perror ){
+    FILE *fp;
+    fp = fopen( "Data_ParticlePosition", "a" );
+
+    if(t==0.0){
+        fprintf( fp, "#        Time");
+        for(int i=0;i<ParN;i++) fprintf( fp,"            x_%d            y_%d            z_%d",i+1,i+1,i+1);
+        fprintf( fp, "\n");
+    }
+
+    fprintf( fp, "%13.6e", t );
+    for(int i=0;i<ParN;i++) fprintf( fp, "  %13.6e  %13.6e  %13.6e",x[i][0],x[i][1],x[i][2] );
+    fprintf( fp, "\n");
+
+    fclose(fp);
+
+    FILE *fc;
+    fc = fopen( "Data_ConservedQuantity", "a" );
+
+    if(t==0.0)
+        fprintf( fc, "#        Time         Energy    EnergyError       Momentum  MomentumError\n");
+    fprintf( fc, "%13.6e  %13.6e  %13.6e  %13.6e  %13.6e\n", t, e, eerror, p, perror );
+
+    fclose(fc);
+
+    return;
+}// FUNCTION OutputData
 
 // FUNCTION main
 int main( int argc, char *argv[] ){
@@ -454,27 +482,67 @@ int main( int argc, char *argv[] ){
     Init( ParX, ParV );
     E0 = Energy( ParX, ParV );
     P0 = Momentum( ParV );
+    OutputData( t, ParX, E0, 0.0, P0, 0.0 );
 
     // main loop
     printf(" Start!\n");
     while( t<end_time ){
-        printf("Time: %f -> %f, dt=%f\n", t, t+dt, dt );
+        printf("Time: %13.6e -> %13.6e, dt=%f\n", t, t+dt, dt );
 
         Update( ParX, ParV );
         CheckBoundary( ParX, ParV );
 
         E = Energy( ParX, ParV );
-        Eerr = (E-E0)/E0;
+        Eerr = (E-E0)/fabs(E0);
         P = Momentum( ParV );
-        Perr = (P-P0)/P0;
+        Perr = (P-P0)/fabs(P0);
         t = t+dt;
-        /* Visualizaion() to be finished */
+        OutputData( t, ParX, E, Eerr, P, Perr );
     }
     printf(" End!\n\n" );
 
     // output the results
-    printf("Energy   Error: %10.3e\n", Eerr );
-    printf("Momentum Error: %10.3e\n", Perr );
+    printf("Info:\n");
+    printf("Number of Particles = %d\n", ParN);
+    printf("Number of Grids     = %dx%dx%d\n",N,N,N);
+    switch( BC ){
+        case 1:
+            printf("Boundary Condition  = Periodic\n");
+            break;
+        case 2:
+            printf("Boundary Condition  = Isolated\n");
+            break;
+    }
+    switch( Scheme_MD ){
+        case 1:
+            printf("Mass Deposition     = NGP\n");
+            break;
+        case 2:
+            printf("Mass Deposition     = CIC\n");
+            break;
+        case 3:
+            printf("Mass Deposition     = TSC\n");
+            break;
+    }
+    switch( Scheme_PS ){
+        case 1:
+            printf("Poisson Solver      = FFT\n");
+            break;
+    }
+    switch( Scheme_OI ){
+        case 1:
+            printf("Orbit Integration   = KDK\n");
+            break;
+        case 2:
+            printf("Orbit Integration   = DKD\n");
+            break;
+        case 3:
+            printf("Orbit Integration   = Rk4\n");
+            break;
+    }
+    printf("\n");
+    printf("Energy   Error: %13.6e\n", Eerr );
+    printf("Momentum Error: %13.6e\n", Perr );
 
     return EXIT_SUCCESS;
 }// FUNCTION main
