@@ -358,9 +358,28 @@ void Update( double x[ParN][3], double v[ParN][3] ){
 
 // FUNCTION Energy: Calculate the total energy of the system
 double Energy( double x[ParN][3], double v[ParN][3] ){
-    double e;
-    /* To be finished */
-    e = 1.0;
+    double e;                // total energy
+    double ekin = 0.0;       // kinetic energy
+    double epot = 0.0;       // potentail energy
+
+    // kineteic energy
+    for(int i=0;i<ParN;i++){
+       ekin += 0.5*ParM[i]*( v[i][0]*v[i][0] + v[i][1]+v[i][1] + v[i][2]*v[i][2] );
+    }
+
+    // potential energy
+    double Rho[N][N][N];      // density
+    double Phi[N][N][N];      // potential
+    MassDeposition( x, Rho ); // get density
+    PoissonSolver( Rho, Phi );// get potential
+    for(int i=0;i<N;i++){
+    for(int j=0;j<N;j++){
+    for(int k=0;k<N;k++){
+       epot += 0.5*Rho[i][j][k]*Phi[i][j][k]*dx*dx*dx;
+    }}}
+
+    // total energy
+    e = ekin + epot;
 
     return e;
 }//FUNCTION Energy
@@ -368,9 +387,18 @@ double Energy( double x[ParN][3], double v[ParN][3] ){
 
 // FUNCTION Momentum: Calculate the total momentum of the system
 double Momentum( double v[ParN][3] ){
-    double p;
-    /* To be finished */
-    p = 1.0;
+    double p;                // total momentum
+    double px = 0.0;         // momentum in x-direction
+    double py = 0.0;         // momentum in y-direction
+    double pz = 0.0;         // momentum in z-direction
+
+    for(int i=0;i<ParN;i++){ // sum over all particles
+       px += ParM[i]*v[i][0];
+       py += ParM[i]*v[i][1];
+       pz += ParM[i]*v[i][2];
+    }
+
+    p = sqrt( px*px + py*py + pz*pz );
 
     return p;
 }// FUNCTION Momentum
