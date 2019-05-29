@@ -33,13 +33,13 @@ void Init( double x[ParN][3], double v[ParN][3] ){
     x[0][1] = 0.5*L;
     x[0][2] = 0.5*L;
     v[0][0] = 0.0;
-    v[0][1] = 0.0;
+    v[0][1] = 0.01;
     v[0][2] = 1.0;
     x[1][0] = 0.75*L;
     x[1][1] = 0.5*L;
     x[1][2] = 0.5*L;
     v[1][0] = 0.0;
-    v[1][1] = 0.0;
+    v[1][1] = 0.01;
     v[1][2] = -1.0;
 
     return;
@@ -48,9 +48,14 @@ void Init( double x[ParN][3], double v[ParN][3] ){
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
 void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
+    for(int i=0;i<N;i++)
+    for(int j=0;j<N;j++)
+    for(int k=0;k<N;k++)
+        rho[i][j][k]=0.0;   // initialization as zero
+
     if(Scheme_MD==1){ //NGP
         for(int n=0;n<ParN;n++){
-            rho[int(x[n][0]/dx)][int(x[n][1]/dx)][int(x[n][2]/dx)]=ParM[n];
+            rho[int(x[n][0]/dx)][int(x[n][1]/dx)][int(x[n][2]/dx)] += ParM[n]/(dx*dx*dx);
         } 
     }
     if(Scheme_MD==2){  //CIC
@@ -300,7 +305,7 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
 // FUNCTION Update: Update the system by dt
 void Update( double x[ParN][3], double v[ParN][3] ){
    double a[ParN][3];     // acceleration of the particle
-   if (Scheme_OI == 0){
+   if (Scheme_OI == 1){
      Acceleration( x, a );
      for ( int i = 0; i < ParN; i = i + 1 ){
         for ( int d = 0; d < 3; d = d + 1 ){
@@ -320,7 +325,7 @@ void Update( double x[ParN][3], double v[ParN][3] ){
         }
      } /////Kick
    } ///KDK
-   else if (Scheme_OI == 1){
+   else if (Scheme_OI == 2){
       for ( int i = 0; i < ParN; i = i + 1 ){
          for ( int d = 0; d < 3; d = d + 1 ){
             x[i][d] += v[i][d]*dt/2;
@@ -339,7 +344,7 @@ void Update( double x[ParN][3], double v[ParN][3] ){
          }
       } /////Drift
    } ///DKD
-   else if (Scheme_OI == 2){
+   else if (Scheme_OI == 3){
       double k[4][ParN][3][2];   ////k_n,Par_ID,dim,pos/vel
       Acceleration( x, a );
       for ( int i = 0; i < ParN; i = i + 1 ){
@@ -442,7 +447,7 @@ double Momentum( double v[ParN][3] ){
 void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
     for ( int i = 0; i < ParN; i = i + 1 ){
        if (BC == 1){
-          for ( int d = 0; i < 3; d = d + 1 ){
+          for ( int d = 0; d < 3; d = d + 1 ){
              if (x[i][d] < 0 ){
                 x[i][d] += L;
              }
@@ -457,8 +462,8 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
              x[i][1] = 1000*L;
              x[i][2] = 1000*L;
              v[i][0] = 0;
-             v[i][0] = 0;
-             v[i][0] = 0;
+             v[i][1] = 0;
+             v[i][2] = 0;
           }
        }
        else {
