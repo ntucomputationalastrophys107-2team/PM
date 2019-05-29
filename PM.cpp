@@ -55,6 +55,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
 
     if(Scheme_MD==1){ //NGP
         for(int n=0;n<ParN;n++){
+            if( x[n][0]>0 && x[n][0]<L && x[n][1]>0 && x[n][1]<L && x[n][2]>0 && x[n][2]<L )
             rho[int(x[n][0]/dx)][int(x[n][1]/dx)][int(x[n][2]/dx)] += ParM[n]/(dx*dx*dx);
         } 
     }
@@ -64,6 +65,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
         int index_z[8];
         double weighting[3][2];
         for (int n=0;n<ParN;n++){
+            if( x[n][0]>0.5*dx && x[n][0]<L-0.5*dx && x[n][1]>0.5*dx && x[n][1]<L-0.5*dx && x[n][2]>0.5*dx && x[n][2]<L-0.5*dx ){
             for(int i=0;i<8;i++){
                 if(i<4){
                     index_x[i]=int(x[n][0]/dx);
@@ -88,6 +90,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
             }
             for(int i=0;i<8;i++){
                 rho[index_x[i]][index_y[i]][index_z[i]]+=weighting[0][i%2]*weighting[1][i%2]*weighting[2][i%2]*ParM[n]/pow(dx,3);
+            }
             }
         }            
     }
@@ -235,7 +238,7 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
         }
         for ( int i = 1; i < N; i = i + 1 ){
             for ( int j = 1; j < N; j = j + 1 ){
-                for ( int d = 0; j < 3; d = d + 1 ){
+                for ( int d = 0; d < 3; d = d + 1 ){
                     acc[0][i][j][d]   = 2*acc[1][i][j][d]-acc[2][i][j][d];
                     acc[N+1][i][j][d] = 2*acc[N][i][j][d]-acc[N-1][i][j][d];
                     acc[i][j][0][d]   = 2*acc[i][j][1][d]-acc[i][j][2][d];
