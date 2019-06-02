@@ -12,14 +12,14 @@
 const double L = 1.0;           // length of the 3-D domain box
 const int    N = 16;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
-const double dt = 0.1;          // time step
+const double dt = 0.01;          // time step
 const int    ParN  = 2;         // number of particles
 const double G = 1.0;           // gravitational constant
 const double end_time = 10.0;   // end time of the evolution
 const double ParM[ParN]={ 1.0, 1.0};  // mass of each particle
 
 // schemes
-const int BC = 1;               // boundary condition ( 1=periodic, 2=isolated )
+const int BC = 2;               // boundary condition ( 1=periodic, 2=isolated )
 const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
 const int Scheme_OI = 1;        // shceme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
