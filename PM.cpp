@@ -317,7 +317,7 @@ void Update( double x[ParN][3], double v[ParN][3] ){
      } //////kick
      for ( int i = 0; i < ParN; i = i + 1 ){
         for ( int d = 0; d < 3; d = d + 1 ){
-           x[i][d] += v[i][d]*dt/2;
+           x[i][d] += v[i][d]*dt;
         }
      } /////Drift
      CheckBoundary( x, v );
@@ -338,7 +338,7 @@ void Update( double x[ParN][3], double v[ParN][3] ){
       Acceleration( x, a );
       for ( int i = 0; i < ParN; i = i + 1 ){
          for ( int d = 0; d < 3; d = d + 1 ){
-            v[i][d] += a[i][d]*dt/2;
+            v[i][d] += a[i][d]*dt;
          }
       } /////Kick
       for ( int i = 0; i < ParN; i = i + 1 ){
