@@ -20,7 +20,7 @@ const double ParM[ParN]={ 1.0, 1.0};  // mass of each particle
 
 // schemes
 const int BC = 2;               // boundary condition ( 1=periodic, 2=isolated )
-const int Scheme_MD = 2;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
+const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
 const int Scheme_OI = 1;        // shceme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 void CheckBoundary( double x[ParN][3], double v[ParN][3] );
@@ -579,7 +579,7 @@ int main( int argc, char *argv[] ){
             printf("Orbit Integration   = DKD\n");
             break;
         case 3:
-            printf("Orbit Integration   = Rk4\n");
+            printf("Orbit Integration   = RK4\n");
             break;
     }
     printf("\n");
