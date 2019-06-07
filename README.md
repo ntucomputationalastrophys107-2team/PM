@@ -13,5 +13,3 @@ Execution:
 Plot:
 
 python plot.py
-
-
