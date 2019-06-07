@@ -39,7 +39,6 @@ def GetData(input,index):
 data = [GetData(PlotData, index) for index in range(ParN)]
 
 
-
 fig = plt.figure()
 ax = p3.Axes3D(fig)
 text  = ax.text2D( 0.08, 0.08, '', fontsize=16, color='black', ha='center', va='center' )

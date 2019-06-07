@@ -136,6 +136,26 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
             }
         }
     }
+    else if( Scheme_MD==3 ){  // Triangular-Shaped-Cloud
+        double weighting[3][3];
+        double devide[3];
+        for(int n=0;n<ParN;n++){
+            if( x[n][0]>1.0*dx && x[n][0]<L-1.0*dx && x[n][1]>1.0*dx && x[n][1]<L-1.0*dx && x[n][2]>1.0*dx && x[n][2]<L-1.0*dx ){
+
+            for(int i=0;i<3;i++){  // weighting of distribution
+                devide[i]= x[n][i]/dx - (int)(x[n][i]/dx);//find the distance between n grid and center of particle
+                weighting[i][0] = pow((1.0-devide[i]),2)*0.5;
+                weighting[i][1] = 0.5*(1.0 + 2.0*devide[i]-2.0*pow(devide[i],2));
+                weighting[i][2] = pow(devide[i],2)*0.5;
+            }
+
+            for(int i=0;i<3;i++)
+            for(int j=0;j<3;j++)
+            for(int k=0;k<3;k++) // deposit density into 27 cells
+                rho[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] += weighting[0][i]*weighting[1][j]*weighting[2][k]*ParM[n]/(dx*dx*dx);
+            }
+        }            
+    }
 
     return;
 }// FUNCTION MassDeposition
@@ -365,6 +385,76 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
                     a[n][2] += -( Phi[(int)(x[n][0]/dx-0.5)+i][(int)(x[n][1]/dx-0.5)+j][(int)(x[n][2]/dx-0.5)+k+1] - Phi[(int)(x[n][0]/dx-0.5)+i][(int)(x[n][1]/dx-0.5)+j][(int)(x[n][2]/dx-0.5)+k-1] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
+              }
+           }
+        }
+        else if( Scheme_MD==3 ){  // Triangular-Shaped-Cloud
+            double weighting[3][3];
+            double devide[3];
+            for(int n=0;n<ParN;n++){
+                if( x[n][0]>1.0*dx && x[n][0]<L-1.0*dx && x[n][1]>1.0*dx && x[n][1]<L-1.0*dx && x[n][2]>1.0*dx && x[n][2]<L-1.0*dx ){
+
+                for(int i=0;i<3;i++){ // weighting of distribution
+                    devide[i]= x[n][i]/dx - (int)(x[n][i]/dx);//find the distance between n grid and center of particle
+                    weighting[i][0] = pow((1.0-devide[i]),2)*0.5;
+                    weighting[i][1] = 0.5*(1.0 + 2.0*devide[i]-2.0*pow(devide[i],2));
+                    weighting[i][2] = pow(devide[i],2)*0.5;
+                }
+
+                for(int i=0;i<3;i++){
+                for(int j=0;j<3;j++){
+                for(int k=0;k<3;k++){ // get acceleration from 27 cells
+
+                // x-direction
+                if( x[n][0]<2.0*dx && i==0 ){        // -x boundary
+                    if( BC==1 ) // periodic
+                        a[n][0] += -( Phi[1][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] - Phi[N-1][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    if( BC==2 ) // isolated
+                        a[n][0] += -( Phi[1][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] - Phi[0][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                }
+                else if( x[n][0]>L-2.0*dx && i==2 ){ // +x boundary
+                    if( BC==1 ) // periodic
+                        a[n][0] += -( Phi[0][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] - Phi[N-2][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    if( BC==2 ) // isolated
+                        a[n][0] += -( Phi[N-1][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] - Phi[N-2][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                }
+                else // interior
+                    a[n][0] += -( Phi[(int)(x[n][0]/dx-1.0)+i+1][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i-1][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+
+                // y-direction
+                if( x[n][1]<2.0*dx && j==0 ){        // -y boundary
+                    if( BC==1 ) // periodic
+                        a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][1][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][N-1][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    if( BC==2 ) // isolated
+                        a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][1][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][0][(int)(x[n][2]/dx-1.0)+k] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                }
+                else if( x[n][1]>L-2.0*dx && j==2 ){ // +y boundary
+                   if( BC==1 ) // periodic
+                        a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][0][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][N-2][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    if( BC==2 ) // isolated
+                        a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][N-1][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][N-2][(int)(x[n][2]/dx-1.0)+k] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                }
+                else // interior
+                    a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j+1][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j-1][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+
+                // z-direction
+                if( x[n][2]<2.0*dx && k==0 ){        // -z boundary
+                    if( BC==1 ) // periodic
+                        a[n][2] += -( Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][1] - Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][N-1] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    if( BC==2 ) // isolated
+                        a[n][2] += -( Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][1] - Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][0] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                }
+                else if( x[n][2]>L-2.0*dx && k==2 ){ // +z boundary
+                    if( BC==1 ) // periodic
+                        a[n][2] += -( Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][0] - Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][N-2] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    if( BC==2 ) // isolated
+                        a[n][2] += -( Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][N-1] - Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][N-2] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+
+                }
+                else // interior
+                    a[n][2] += -( Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k+1] - Phi[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k-1] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+
+                }}}
                 }
             }
         }
@@ -372,13 +462,15 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
     else if( Scheme_SG==2 ){  // Direct N-body
     double r;  // distance between two particles
     for(int i=0;i<ParN;i++){
+        if( x[i][0]>0 && x[i][0]<L && x[i][1]>0 && x[i][1]<L && x[i][2]>0 && x[i][2]<L ){
         for(int j=0;j<ParN;j++){
-            if( i != j ){
+            if( i!=j && x[j][0]>0 && x[j][0]<L && x[j][1]>0 && x[j][1]<L && x[j][2]>0 && x[j][2]<L ){
                 r = sqrt( (x[j][0]-x[i][0])*(x[j][0]-x[i][0]) + (x[j][1]-x[i][1])*(x[j][1]-x[i][1]) + (x[j][2]-x[i][2])*(x[j][2]-x[i][2]) );
                 a[i][0] += G*ParM[j]/(r*r)*(x[j][0]-x[i][0])/r;
                 a[i][1] += G*ParM[j]/(r*r)*(x[j][1]-x[i][1])/r;
-                a[i][2] += G*ParM[j]/(r*r)*(x[j][2]-x[i][2])/r;;
+                a[i][2] += G*ParM[j]/(r*r)*(x[j][2]-x[i][2])/r;
             }
+        }
         }
     }
     }
