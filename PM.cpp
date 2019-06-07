@@ -25,6 +25,7 @@ const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=T
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
 const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
+
 // FUNCTION Init: Set the initial condition
 void Init( double x[ParN][3], double v[ParN][3] ){
     /* To be modified for the test problem */
@@ -72,12 +73,13 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
           printf("Wrong BC\n");
        }
     }
+
     return;
 }// FUNCTION CheckBoundary
 
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
-void MassDeposition( double x[ParN][3], double rho[N][N][N] ){    
+void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
     for(int i=0;i<N;i++)
     for(int j=0;j<N;j++)
     for(int k=0;k<N;k++)
@@ -111,9 +113,8 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
         double devide[3];
         for(int n=0;n<ParN;n++){
             if( x[n][0]>1.0*dx && x[n][0]<L-1.0*dx && x[n][1]>1.0*dx && x[n][1]<L-1.0*dx && x[n][2]>1.0*dx && x[n][2]<L-1.0*dx ){
-              
-                // weighting of distribution
-            for(int i=0;i<3;i++){
+
+            for(int i=0;i<3;i++){  // weighting of distribution
                 devide[i]= x[n][i]/dx - (int)(x[n][i]/dx);//find the distance between n grid and center of particle
                 weighting[i][0] = pow((1.0-devide[i]),2)*0.5;
                 weighting[i][1] = 0.5*(1.0 + 2.0*devide[i]-2.0*pow(devide[i],2));
@@ -127,6 +128,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
             }
         }            
     }
+
     return;
 }// FUNCTION MassDeposition
 
@@ -285,7 +287,6 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
                     a[n][2] = -( Phi[(int)(x[n][0]/dx)][(int)(x[n][1]/dx)][(int)(x[n][2]/dx)+1] - Phi[(int)(x[n][0]/dx)][(int)(x[n][1]/dx)][(int)(x[n][2]/dx)-1] ) /(2.0*dx*ParM[n]);
                 }
             }
-        
         }
         else if( Scheme_MD==2 ){  // Cloud-In-Cell
             double weighting[3][2];
