@@ -21,7 +21,7 @@ const double ParM[ParN] = { 1.0, 1.0 };  // mass of each particle
 // schemes
 const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
 const int Scheme_SG = 1;        // scheme of self-gravity ( 1=PM, 2=DN )
-const int Scheme_MD = 3;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
+const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
 const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
@@ -72,14 +72,12 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
           printf("Wrong BC\n");
        }
     }
-
     return;
 }// FUNCTION CheckBoundary
 
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
-void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
-    
+void MassDeposition( double x[ParN][3], double rho[N][N][N] ){    
     for(int i=0;i<N;i++)
     for(int j=0;j<N;j++)
     for(int k=0;k<N;k++)
@@ -370,7 +368,7 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
 
                 for(int i=0;i<3;i++){
                 for(int j=0;j<3;j++){
-                for(int k=0;k<3;k++){ // get acceleration from 8 cells
+                for(int k=0;k<3;k++){ // get acceleration from 27 cells
 
                 // x-direction
                 if( x[n][0]<2.0*dx && i==0 ){        // -x boundary
@@ -609,7 +607,6 @@ void OutputData( double t, double x[ParN][3], double e, double eerror, double p,
     fprintf( fc, "%13.6e  %13.6e  %13.6e  %13.6e  %13.6e\n", t, e, eerror, p, perror );
 
     fclose(fc);
-
 
     return;
 }// FUNCTION OutputData
