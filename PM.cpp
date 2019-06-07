@@ -427,13 +427,15 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
     else if( Scheme_SG==2 ){  // Direct N-body
     double r;  // distance between two particles
     for(int i=0;i<ParN;i++){
+        if( x[i][0]>0 && x[i][0]<L && x[i][1]>0 && x[i][1]<L && x[i][2]>0 && x[i][2]<L ){
         for(int j=0;j<ParN;j++){
-            if( i != j ){
+            if( i!=j && x[j][0]>0 && x[j][0]<L && x[j][1]>0 && x[j][1]<L && x[j][2]>0 && x[j][2]<L ){
                 r = sqrt( (x[j][0]-x[i][0])*(x[j][0]-x[i][0]) + (x[j][1]-x[i][1])*(x[j][1]-x[i][1]) + (x[j][2]-x[i][2])*(x[j][2]-x[i][2]) );
                 a[i][0] += G*ParM[j]/(r*r)*(x[j][0]-x[i][0])/r;
                 a[i][1] += G*ParM[j]/(r*r)*(x[j][1]-x[i][1])/r;
-                a[i][2] += G*ParM[j]/(r*r)*(x[j][2]-x[i][2])/r;;
+                a[i][2] += G*ParM[j]/(r*r)*(x[j][2]-x[i][2])/r;
             }
+        }
         }
     }
     }
