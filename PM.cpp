@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <fftw3.h>
+#include <ctime>
 
 //-----------------------------------
 // A Partilce Mesh Code
@@ -10,14 +11,15 @@
 
 // constants
 const double L = 1.0;           // length of the 3-D domain box
-const int    N = 16;            // number of grid in each direction
+const int    N = 28;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
 const double dt = 0.001;        // time step
-const int    ParN  = 2;         // number of particles
+const int    ParN  = 20;         // number of particles
 const double G = 1.0;           // gravitational constant
-const double end_time = 10.0;   // end time of the evolution
-const double ParM[ParN] = { 1.0, 1.0 };  // mass of each particle
-
+const double end_time = 1.0;   // end time of the evolution
+//const double ParM[ParN] = {1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0};  // mass of each particle
+///const double ParM[ParN] = {10.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0};  // mass of each particle
+double ParM[ParN] = {};
 // schemes
 const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
 const int Scheme_SG = 1;        // scheme of self-gravity ( 1=PM, 2=DN )
@@ -26,21 +28,46 @@ const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
 const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
 
+
+
 // FUNCTION Init: Set the initial condition
 void Init( double x[ParN][3], double v[ParN][3] ){
     /* To be modified for the test problem */
-    x[0][0] = 0.25*L;
+    time_t t;
+    /* Intializes random number generator */
+    srand(time(NULL));
+    x[0][0] = 0.5*L;
     x[0][1] = 0.5*L;
     x[0][2] = 0.5*L;
-    v[0][0] = 0.0;
-    v[0][1] = 0.01;
-    v[0][2] = 1.0;
-    x[1][0] = 0.75*L;
-    x[1][1] = 0.5*L;
-    x[1][2] = 0.5*L;
-    v[1][0] = 0.0;
-    v[1][1] = 0.01;
-    v[1][2] = -1.0;
+    v[0][0] = 0;
+    v[0][1] = 0;
+    v[0][2] = 0;
+    ParM[0] = 10;
+
+
+    /* Print 5 random numbers from 0 to 49 */
+    for( int i = 1 ; i < ParN ; i++ ) {
+       x[i][0] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
+       x[i][1] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
+       x[i][2] = 0.5;
+       v[i][0] = ((double)rand()/RAND_MAX*-0.5)*0.2*L;
+       v[i][1] = ((double)rand()/RAND_MAX*-0.5)*0.2*L;
+       v[i][2] = 0;
+       ParM[i] = 1.0;
+    }
+
+    //x[0][0] = 0.25*L;
+    //x[0][1] = 0.5*L;
+    //x[0][2] = 0.5*L;
+    //v[0][0] = 0.0;
+    //v[0][1] = 0.01;
+    //v[0][2] = 1.0;
+    //x[1][0] = 0.75*L;
+    //x[1][1] = 0.5*L;
+    //x[1][2] = 0.5*L;
+    //v[1][0] = 0.0;
+    //v[1][1] = 0.01;
+    //v[1][2] = -1.0;
 
     return;
 }// FUNCTION Init
@@ -60,7 +87,8 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
             }
         }
         else if( BC==2 ){ // Isolated Boundary Condition
-            if( x[i][0]<0 || x[i][1]<0 || x[i][2]<0 || x[i][0]>L || x[i][1]>L || x[i][2]>L ){
+
+            if( x[i][0]<L/N || x[i][1]<L/N || x[i][2]<L/N || x[i][0]>L-L/N || x[i][1]>L-L/N || x[i][2]>L-L/N ){
                 x[i][0] = 1000*L;
                 x[i][1] = 1000*L;
                 x[i][2] = 1000*L;
@@ -89,7 +117,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
         for(int n=0;n<ParN;n++){
             if( x[n][0]>0 && x[n][0]<L && x[n][1]>0 && x[n][1]<L && x[n][2]>0 && x[n][2]<L )
             rho[(int)(x[n][0]/dx)][(int)(x[n][1]/dx)][(int)(x[n][2]/dx)] += ParM[n]/(dx*dx*dx);
-        } 
+        }
     }
     else if( Scheme_MD==2 ){  // Cloud-In-Cell
         double weighting[3][2];
@@ -106,7 +134,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
             for(int k=0;k<2;k++) // deposit density into 8 cells
                 rho[(int)(x[n][0]/dx-0.5)+i][(int)(x[n][1]/dx-0.5)+j][(int)(x[n][2]/dx-0.5)+k] += weighting[0][i]*weighting[1][j]*weighting[2][k]*ParM[n]/(dx*dx*dx);
             }
-        }            
+        }
     }
 
     return;
@@ -117,7 +145,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
 void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
     if( BC==1 ){            // Periodic Boundary Condition
         if( Scheme_PS==1 ){ // Fast Fourier Transform
- 
+
         double KK;     // K*K = Kx*Kx + Ky*Ky + Kz*Kz
         int nx, ny;
         fftw_complex rho_K[N][N][N/2+1];  // density   in K space
@@ -204,6 +232,7 @@ void PoissonSolver( double rho[N][N][N], double phi[N][N][N] ){
 
 // FUNCTION Acceleration: Calculate the acceleration of each particle
 void Acceleration( double x[ParN][3], double a[ParN][3] ){
+    time_t MD_start, MD_end, PS_start, PS_end;;
     for(int i=0;i<ParN;i++)
     for(int j=0;j<3;j++)
         a[i][j] = 0.0;   // initialization as zero
@@ -211,9 +240,14 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
     if( Scheme_SG==1 ){ // Particle Mesh
         double Rho[N][N][N];  // density
         double Phi[N][N][N];  // potential
+        MD_start = clock();
         MassDeposition( x, Rho );
+        MD_end = clock();
+        printf("The MD %f ms by clock()\n",difftime(MD_end,MD_start));
+        PS_start = clock();
         PoissonSolver( Rho, Phi );
-
+        PS_end = clock();
+        printf("The PS %f ms by clock()\n",difftime(PS_end,PS_start));
         if( Scheme_MD==1 ){       // Nearest-Grid-Point
             for(int n=0;n<ParN;n++){
                 if( x[n][0]>0 && x[n][0]<L && x[n][1]>0 && x[n][1]<L && x[n][2]>0 && x[n][2]<L ){
@@ -356,8 +390,13 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
 // FUNCTION Update: Update the system by dt
 void Update( double x[ParN][3], double v[ParN][3] ){
     double a[ParN][3];     // acceleration of the particle
+    time_t AC_start, AC_end;
     if( Scheme_OI==1 ){      // Kick-Drift-Kick
+        AC_start = clock();
+        CheckBoundary( x, v );
         Acceleration( x, a );
+        AC_end = clock();
+        printf("The AC %f ms by clock()\n",difftime(AC_end,AC_start));
         for(int i=0;i<ParN;i=i+1){
             for(int d=0;d<3;d=d+1){
                 v[i][d] += a[i][d]*dt/2;
@@ -397,6 +436,7 @@ void Update( double x[ParN][3], double v[ParN][3] ){
     }
     else if( Scheme_OI==3 ){ // Runge-Kutta 4th
         double k[4][ParN][3][2];   // k_n, Par_ID, dim, pos/vel
+        CheckBoundary( x, v );
         Acceleration( x, a );
         for(int i=0;i<ParN;i=i+1){
             for(int d=0;d<3;d=d+1){
@@ -535,6 +575,8 @@ int main( int argc, char *argv[] ){
     double P0;                // initial momentum |P0|
     double P;                 // moentum |P|
     double Perr;              // momentum conservation error
+    time_t UD_start, UD_end; //timer
+    int count_for_evolution;
 
     // initialization
     Init( ParX, ParV );
@@ -542,12 +584,18 @@ int main( int argc, char *argv[] ){
     P0 = Momentum( ParV );
     OutputData( t, ParX, E0, 0.0, P0, 0.0 );
 
+
     // main loop
+    count_for_evolution = 0;
     printf(" Start!\n");
+//    printf(" M0 = %f\n",ParM[0]);
+
     while( t<end_time ){
         printf("Time: %13.6e -> %13.6e, dt=%f\n", t, t+dt, dt );
-
+        UD_start = clock();
         Update( ParX, ParV );
+        UD_end = clock();
+        printf("The UD %f ms by clock()\n",difftime(UD_end,UD_start));
         CheckBoundary( ParX, ParV );
 
         E = Energy( ParX, ParV );
@@ -555,6 +603,7 @@ int main( int argc, char *argv[] ){
         P = Momentum( ParV );
         Perr = (P-P0)/fabs(P0);
         t = t+dt;
+        count_for_evolution = count_for_evolution+1;
         OutputData( t, ParX, E, Eerr, P, Perr );
     }
     printf(" End!\n\n" );
