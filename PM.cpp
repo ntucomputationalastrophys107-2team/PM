@@ -125,7 +125,7 @@ void MassDeposition( double x[ParN][3], double rho[N][N][N] ){
             for(int i=0;i<3;i++)
             for(int j=0;j<3;j++)
             for(int k=0;k<3;k++) // deposit density into 27 cells
-                rho[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][1]/dx-1.0)+k] += weighting[0][i]*weighting[1][j]*weighting[2][k]*ParM[n]/(dx*dx*dx);
+                rho[(int)(x[n][0]/dx-1.0)+i][(int)(x[n][1]/dx-1.0)+j][(int)(x[n][2]/dx-1.0)+k] += weighting[0][i]*weighting[1][j]*weighting[2][k]*ParM[n]/(dx*dx*dx);
             }
         }            
     }
