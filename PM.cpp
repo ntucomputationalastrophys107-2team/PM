@@ -396,7 +396,7 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
                         a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][1][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][0][(int)(x[n][2]/dx-1.0)+k] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
                 }
                 else if( x[n][1]>L-2.0*dx && j==2 ){ // +y boundary
-                    if( BC==1 ) // periodic
+                   if( BC==1 ) // periodic
                         a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][0][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][N-2][(int)(x[n][2]/dx-1.0)+k] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
                     if( BC==2 ) // isolated
                         a[n][1] += -( Phi[(int)(x[n][0]/dx-1.0)+i][N-1][(int)(x[n][2]/dx-1.0)+k] - Phi[(int)(x[n][0]/dx-1.0)+i][N-2][(int)(x[n][2]/dx-1.0)+k] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
