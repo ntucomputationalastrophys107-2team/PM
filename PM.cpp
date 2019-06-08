@@ -15,11 +15,11 @@ const double dx = L/N;          // spatial resolution
 const double dt = 0.001;        // time step
 const int    ParN  = 2;         // number of particles
 const double G = 1.0;           // gravitational constant
-const double end_time = 10.0;   // end time of the evolution
+const double end_time = 3.142;   // end time of the evolution
 const double ParM[ParN] = { 1.0, 1.0 };  // mass of each particle
 
 // schemes
-const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
+const int BC = 1;               // boundary condition ( 1=Periodic, 2=Isolated )
 const int Scheme_SG = 1;        // scheme of self-gravity ( 1=PM, 2=DN )
 const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
@@ -78,30 +78,33 @@ void CheckBoundary( double x[ParN][3], double v[ParN][3] ){
 }// FUNCTION CheckBoundary
 
 
-double ***Constr3DArray( double ***arr, int nx, int ny, int nz ){
-    arr = new double**[nx];
-    for(int i=0;i<nx;i++){
-        arr[i] = new double*[ny];
-        for(int j=0;j<ny;j++){
-            arr[i][j] = new double[nz];
-            for(int k=0;k<nz;k++){
-                arr[i][j][k] =0.0;
-            }
+// FUNCTION Constr3DArray: Dynamically allocate a 3D array
+double ***Constr3DArray( int dimx, int dimy, int dimz ){
+    double ***arr;
+    arr = new double**[dimx];
+    for(int i=0;i<dimx;i++){
+        arr[i] = new double*[dimy];
+        for(int j=0;j<dimy;j++){
+            arr[i][j] = new double[dimz];
         }
     }
-    return arr;
-}
 
-void Delete3DArray( double ***arr, int nx, int ny, int nz ){
-    for(int i=0;i<nx;i++){
-        for(int j=0;j<ny;j++){
+    return arr;
+}// FUNCTION Constr3DArray
+
+
+// FUNCTION Delete3DArray: Dynamically deallocate a 3D array
+void Delete3DArray( double ***arr, int dimx, int dimy, int dimz ){
+    for(int i=0;i<dimx;i++){
+        for(int j=0;j<dimy;j++){
             delete [] arr[i][j];
         }
         delete [] arr[i];
     }
     delete [] arr;
+
     return;
-}
+}// FUNCTION Delete3DArray
 
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
@@ -162,16 +165,27 @@ void MassDeposition( double x[ParN][3], double ***rho ){
 // FUNCTION PoissonSolver: Solve the Poisson equation to get the potential
 void PoissonSolver( double ***rho, double ***phi ){
     if( BC==1 ){            // Periodic Boundary Condition
-/*        if( Scheme_PS==1 ){ // Fast Fourier Transform
+        if( Scheme_PS==1 ){ // Fast Fourier Transform
  
-        double KK;     // K*K = Kx*Kx + Ky*Ky + Kz*Kz
+        double KK;            // K*K = Kx*Kx + Ky*Ky + Kz*Kz
         int nx, ny;
-        fftw_complex rho_K[N][N][N/2+1];  // density   in K space
-        fftw_complex phi_K[N][N][N/2+1];  // potential in K space
-        fftw_plan rhoXtorhoK, phiKtophiX;
-        rhoXtorhoK = fftw_plan_dft_r2c_3d( N, N, N, &rho[0][0][0], &rho_K[0][0][0], FFTW_ESTIMATE ); // Fourier Transform from rho(x) to rho(k)
-        phiKtophiX = fftw_plan_dft_c2r_3d( N, N, N, &phi_K[0][0][0], &phi[0][0][0], FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
+        double *rho_X;        // density   in X space
+        rho_X = (double*) fftw_malloc( N*N*N * sizeof(double) );
+        double *phi_X;        // potential in X space
+        phi_X = (double*) fftw_malloc( N*N*N * sizeof(double) );
+        fftw_complex *rho_K;  // density   in K space
+        rho_K = (fftw_complex*) fftw_malloc( N*N*(N/2+1) * sizeof(fftw_complex) );
+        fftw_complex *phi_K;  // potential in K space
+        phi_K = (fftw_complex*) fftw_malloc( N*N*(N/2+1) * sizeof(fftw_complex) );
 
+        fftw_plan rhoXtorhoK, phiKtophiX;
+        rhoXtorhoK = fftw_plan_dft_r2c_3d( N, N, N, rho_X, rho_K, FFTW_ESTIMATE ); // Fourier Transform from rho(x) to rho(k)
+        phiKtophiX = fftw_plan_dft_c2r_3d( N, N, N, phi_K, phi_X, FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
+
+        for(int i=0;i<N;i++)
+        for(int j=0;j<N;j++)
+        for(int k=0;k<N;k++)
+            rho_X[k+N*(j+N*i)] = rho[i][j][k];
         fftw_execute( rhoXtorhoK ); // Fourier Transform from rho(x) to rho(k)
         for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
@@ -179,60 +193,76 @@ void PoissonSolver( double ***rho, double ***phi ){
             if( i>N/2 ) nx=i-N; else nx=i;
             if( j>N/2 ) ny=j-N; else ny=j;
             KK = (nx*2*M_PI/L)*(nx*2*M_PI/L) + (ny*2*M_PI/L)*(ny*2*M_PI/L) + (k*2*M_PI/L)*(k*2*M_PI/L); // K*K = Kx*Kx + Ky*Ky + Kz*Kz
-            phi_K[i][j][k][0] = rho_K[i][j][k][0]/KK*4.0*M_PI*G*(-1.0/(N*N*N)); // real part phi(k) = -4*Pi*G*rho(k)/k^2 and normalize by 1/N^3
-            phi_K[i][j][k][1] = rho_K[i][j][k][1]/KK*4.0*M_PI*G*(-1.0/(N*N*N)); // imag part phi(k) = -4*Pi*G*rho(k)/k^2 and normalize by 1/N^3
+            phi_K[k+(N/2+1)*(j+N*i)][0] = rho_K[k+(N/2+1)*(j+N*i)][0]/KK*4.0*M_PI*G*(-1.0/(N*N*N)); // real part phi(k) = -4*Pi*G*rho(k)/k^2 and normalize by 1/N^3
+            phi_K[k+(N/2+1)*(j+N*i)][1] = rho_K[k+(N/2+1)*(j+N*i)][1]/KK*4.0*M_PI*G*(-1.0/(N*N*N)); // imag part phi(k) = -4*Pi*G*rho(k)/k^2 and normalize by 1/N^3
         }}}
-        phi_K[0][0][0][0] = 0.0;       // set DC to 0
-        phi_K[0][0][0][1] = 0.0;       // set DC to 0
+        phi_K[0][0] = 0.0;       // set DC to 0
+        phi_K[0][1] = 0.0;       // set DC to 0
         fftw_execute( phiKtophiX ); // Inverse Fourier Transform from phi(k) to phi(x)
+        for(int i=0;i<N;i++)
+        for(int j=0;j<N;j++)
+        for(int k=0;k<N;k++)
+            phi[i][j][k] = phi_X[k+N*(j+N*i)];
 
         fftw_destroy_plan( rhoXtorhoK );
         fftw_destroy_plan( phiKtophiX );
 
+        fftw_free( rho_X );
+        fftw_free( phi_X );
+        fftw_free( rho_K );
+        fftw_free( phi_K );
+
         }
         else printf("ERROR: Unsupported Scheme_PS!\n");
-    */}
+    }
     else if( BC==2 ){       // Isolated Boundary Condition
         if( Scheme_PS==1 ){ // Fast Fourier Transform
 
-        double ***mas_0pad = Constr3DArray( NULL, 2*N, 2*N, 2*N ); // zero padding on the mass array
-        double ***greensfn = Constr3DArray( NULL, 2*N, 2*N, 2*N ); // symmetric discrete Green's function -1/r
-        double ***phi_0pad = Constr3DArray( NULL, 2*N, 2*N, 2*N ); // zero padding on the potential array
-        int nx,ny,nz;                   // number of distance interval
+        int nx,ny,nz;              // number of distance interval
+        double *mas_0pad;          // zero padding on the mass array
+        mas_0pad = (double*) fftw_malloc( (2*N)*(2*N)*(2*N) * sizeof(double) );
+        double *greensfn;          // symmetric discrete Green's function -1/r
+        greensfn = (double*) fftw_malloc( (2*N)*(2*N)*(2*N) * sizeof(double) );
+        double *phi_0pad;          // zero padding on the potential array
+        phi_0pad = (double*) fftw_malloc( (2*N)*(2*N)*(2*N) * sizeof(double) );
+        fftw_complex *mas_0pad_K;  // mass in K space
+        mas_0pad_K = (fftw_complex*) fftw_malloc( (2*N)*(2*N)*(N+1) * sizeof(fftw_complex) );
+        fftw_complex *greensfn_K;  // Green's function in K space
+        greensfn_K = (fftw_complex*) fftw_malloc( (2*N)*(2*N)*(N+1) * sizeof(fftw_complex) );
+        fftw_complex *phi_0pad_K;  // potential in K space
+        phi_0pad_K = (fftw_complex*) fftw_malloc( (2*N)*(2*N)*(N+1) * sizeof(fftw_complex) );
+
+        fftw_plan masXtomasK, greXtogreK, phiKtophiX;
+        masXtomasK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, mas_0pad, mas_0pad_K, FFTW_ESTIMATE ); // Fourier Transform from mas(x) to mas(k)
+        greXtogreK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, greensfn, greensfn_K, FFTW_ESTIMATE ); // Fourier Transform from gre(x) to gre(k)
+        phiKtophiX = fftw_plan_dft_c2r_3d( 2*N, 2*N, 2*N, phi_0pad_K, phi_0pad, FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
+
         for(int i=0;i<2*N;i++){
         for(int j=0;j<2*N;j++){
         for(int k=0;k<2*N;k++){
-            if( i<N && j<N && k<N ) mas_0pad[i][j][k] = rho[i][j][k]*dx*dx*dx;  // mass of cell = density * cell volume
-            else mas_0pad[i][j][k] = 0.0;                                       // zero padding
+            if( i<N && j<N && k<N ) mas_0pad[k+(2*N)*(j+(2*N)*i)] = rho[i][j][k]*dx*dx*dx;  // mass of cell = density * cell volume
+            else mas_0pad[k+(2*N)*(j+(2*N)*i)] = 0.0;                                       // zero padding
 
             if( i>=N ) nx=2*N-i; else nx=i;  // symmetrization
             if( j>=N ) ny=2*N-j; else ny=j;  // symmetrization
             if( k>=N ) nz=2*N-k; else nz=k;  // symmetrization
 
-            if( i==0 && j==0 && k==0 ) greensfn[i][j][k] = 0.0;  // ignore self force
-            else greensfn[i][j][k] = -1.0/(dx*sqrt( nx*nx + ny*ny + nz*nz )); // -1/r
+            if( i==0 && j==0 && k==0 ) greensfn[0] = 0.0;  // ignore self force
+            else greensfn[k+(2*N)*(j+(2*N)*i)] = -1.0/(dx*sqrt( nx*nx + ny*ny + nz*nz )); // -1/r
         }}}
-        fftw_complex *mas_0pad_K;
-        mas_0pad_K = (fftw_complex*) fftw_malloc( (2*N)*(2*N)*(N+1) * sizeof(fftw_complex) );  // mass in K space
-        fftw_complex *greensfn_K;
-        greensfn_K = (fftw_complex*) fftw_malloc( (2*N)*(2*N)*(N+1) * sizeof(fftw_complex) );  // Green's function in K space
-        fftw_complex *phi_0pad_K;
-        phi_0pad_K = (fftw_complex*) fftw_malloc( (2*N)*(2*N)*(N+1) * sizeof(fftw_complex) );  // potential in K space
-        fftw_plan masXtomasK, greXtogreK, phiKtophiX;
-        masXtomasK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, &mas_0pad[0][0][0], mas_0pad_K, FFTW_ESTIMATE ); // Fourier Transform from mas(x) to mas(k)
-        greXtogreK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, &greensfn[0][0][0], greensfn_K, FFTW_ESTIMATE ); // Fourier Transform from gre(x) to gre(k)
-        phiKtophiX = fftw_plan_dft_c2r_3d( 2*N, 2*N, 2*N, phi_0pad_K, &phi_0pad[0][0][0], FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
-
         fftw_execute( masXtomasK ); // Fourier Transform from mas(x) to mas(k)
         fftw_execute( greXtogreK ); // Fourier Transform from gre(x) to gre(k)
         for(int i=0;i<2*N;i++){
         for(int j=0;j<2*N;j++){
         for(int k=0;k<N+1;k++){
-            phi_0pad_K[k+(N+1)*(j+(2*N)*i)][0] = 1.0;//G*( mas_0pad_K[k+(N+1)*(j+(2*N)*i)][0]*greensfn_K[k+(N+1)*(j+(2*N)*i)][0]-mas_0pad_K[k+(N+1)*(j+(2*N)*i)][1]*greensfn_K[k+(N+1)*(j+(2*N)*i)][1])*(1.0/(2*N*2*N*2*N));// real part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
-            phi_0pad_K[k+(N+1)*(j+(2*N)*i)][1] = 0.0;//G*( mas_0pad_K[k+(N+1)*(j+(2*N)*i)][0]*greensfn_K[k+(N+1)*(j+(2*N)*i)][1]+mas_0pad_K[k+(N+1)*(j+(2*N)*i)][1]*greensfn_K[k+(N+1)*(j+(2*N)*i)][0])*(1.0/(2*N*2*N*2*N));// imag part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
+            phi_0pad_K[k+(N+1)*(j+(2*N)*i)][0] = G*( mas_0pad_K[k+(N+1)*(j+(2*N)*i)][0]*greensfn_K[k+(N+1)*(j+(2*N)*i)][0]-mas_0pad_K[k+(N+1)*(j+(2*N)*i)][1]*greensfn_K[k+(N+1)*(j+(2*N)*i)][1])*(1.0/(2*N*2*N*2*N));// real part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
+            phi_0pad_K[k+(N+1)*(j+(2*N)*i)][1] = G*( mas_0pad_K[k+(N+1)*(j+(2*N)*i)][0]*greensfn_K[k+(N+1)*(j+(2*N)*i)][1]+mas_0pad_K[k+(N+1)*(j+(2*N)*i)][1]*greensfn_K[k+(N+1)*(j+(2*N)*i)][0])*(1.0/(2*N*2*N*2*N));// imag part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
         }}}
         fftw_execute( phiKtophiX ); // Inverse Fourier Transform from phi(k) to phi(x)
-        printf("--%f---\n",phi_0pad_K[0][0]);
+        for(int i=0;i<N;i++)
+        for(int j=0;j<N;j++)
+        for(int k=0;k<N;k++)
+            phi[i][j][k] = phi_0pad[k+(2*N)*(j+(2*N)*i)]; // remove the padding
 
         fftw_destroy_plan( masXtomasK );
         fftw_destroy_plan( greXtogreK );
@@ -241,15 +271,9 @@ void PoissonSolver( double ***rho, double ***phi ){
         fftw_free( mas_0pad_K );
         fftw_free( greensfn_K );
         fftw_free( phi_0pad_K );
-
-        for(int i=0;i<N;i++)
-        for(int j=0;j<N;j++)
-        for(int k=0;k<N;k++)
-            phi[i][j][k] = phi_0pad[i][j][k]; // remove the padding
-
-        Delete3DArray( mas_0pad, 2*N, 2*N, 2*N );
-        Delete3DArray( greensfn, 2*N, 2*N, 2*N );
-        Delete3DArray( phi_0pad, 2*N, 2*N, 2*N );
+        fftw_free( mas_0pad );
+        fftw_free( greensfn );
+        fftw_free( phi_0pad );
 
         }
         else printf("ERROR: Unsupported Scheme_PS!\n");
@@ -267,10 +291,8 @@ void Acceleration( double x[ParN][3], double a[ParN][3] ){
         a[i][j] = 0.0;   // initialization as zero
 
     if( Scheme_SG==1 ){ // Particle Mesh
-        //double Rho[N][N][N];  // density
-        //double Phi[N][N][N];  // potential
-        double ***Rho = Constr3DArray( NULL, N, N, N );
-        double ***Phi = Constr3DArray( NULL, N, N, N );
+        double ***Rho = Constr3DArray( N, N, N ); // density
+        double ***Phi = Constr3DArray( N, N, N ); // potential
         MassDeposition( x, Rho );
         PoissonSolver( Rho, Phi );
 
@@ -591,16 +613,10 @@ double Energy( double x[ParN][3], double v[ParN][3] ){
     }
 
     // potential energy
-    //double Rho[N][N][N];      // density
-    //double Phi[N][N][N];      // potential
-    double ***Rho = Constr3DArray( NULL, N, N, N );
-    double ***Phi = Constr3DArray( NULL, N, N, N );
+    double ***Rho = Constr3DArray( N, N, N );  // density
+    double ***Phi = Constr3DArray( N, N, N );  // potential
     MassDeposition( x, Rho ); // get density
-    printf("%f\n",4.0);
-    printf("%f\n",Rho[8][16][16]);
-    printf("%f\n",Phi[8][16][16]);
     PoissonSolver( Rho, Phi );// get potential
-    printf("%f\n",5.0);
     for(int i=0;i<N;i++){
     for(int j=0;j<N;j++){
     for(int k=0;k<N;k++){
