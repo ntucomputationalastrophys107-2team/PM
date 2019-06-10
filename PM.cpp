@@ -93,14 +93,14 @@ void MassDeposition( double *x, double *rho ){
 
     if( Scheme_MD==1 ){       // Nearest-Grid-Point
         for(int n=0;n<ParN;n++){
-            if( x[n*3+0]>0 && x[n*3+0]<L && x[n*3+1]>0 && x[n*3+1]<L && x[n*3+2]>0 && x[n*3+2]<L )
+            if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx )
             rho[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] += ParM[n]/(dx*dx*dx);
         } 
     }
     else if( Scheme_MD==2 ){  // Cloud-In-Cell
         double weighting[3][2];
         for(int n=0;n<ParN;n++){
-            if( x[n*3+0]>0.5*dx && x[n*3+0]<L-0.5*dx && x[n*3+1]>0.5*dx && x[n*3+1]<L-0.5*dx && x[n*3+2]>0.5*dx && x[n*3+2]<L-0.5*dx ){
+            if( x[n*3+0]>1.5*dx && x[n*3+0]<L-1.5*dx && x[n*3+1]>1.5*dx && x[n*3+1]<L-1.5*dx && x[n*3+2]>1.5*dx && x[n*3+2]<L-1.5*dx ){
 
             for(int i=0;i<3;i++){  // weighting of distribution
                 weighting[i][1] = (x[n*3+i]/dx-0.5) - (int)(x[n*3+i]/dx-0.5);
@@ -118,7 +118,7 @@ void MassDeposition( double *x, double *rho ){
         double weighting[3][3];
         double devide[3];
         for(int n=0;n<ParN;n++){
-            if( x[n*3+0]>1.0*dx && x[n*3+0]<L-1.0*dx && x[n*3+1]>1.0*dx && x[n*3+1]<L-1.0*dx && x[n*3+2]>1.0*dx && x[n*3+2]<L-1.0*dx ){
+            if( x[n*3+0]>2.0*dx && x[n*3+0]<L-2.0*dx && x[n*3+1]>2.0*dx && x[n*3+1]<L-2.0*dx && x[n*3+2]>2.0*dx && x[n*3+2]<L-2.0*dx ){
 
             for(int i=0;i<3;i++){  // weighting of distribution
                 devide[i]= x[n*3+i]/dx - (int)(x[n*3+i]/dx);//find the distance between n grid and center of particle
@@ -261,54 +261,15 @@ void Acceleration( double *x, double *a ){
 
         if( Scheme_MD==1 ){       // Nearest-Grid-Point
             for(int n=0;n<ParN;n++){
-                if( x[n*3+0]>0 && x[n*3+0]<L && x[n*3+1]>0 && x[n*3+1]<L && x[n*3+2]>0 && x[n*3+2]<L ){
+                if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx ){
 
                 // x-direction
-                if( x[n*3+0]<dx ){         // -x boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+0] = -( Phi[Index( 1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( N-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n]);
-                    if( BC==2 ) // isolated
-                        a[n*3+0] = -( Phi[Index( 1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( 0, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(dx*ParM[n]);
-                }
-                else if( x[n*3+0]>L-dx ){  // +x boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+0] = -( Phi[Index( 0, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( N-2, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n]);
-                    if( BC==2 ) // isolated
-                        a[n*3+0] = -( Phi[Index( N-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( N-2, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(dx*ParM[n]);
-                }
-                else // interior
                     a[n*3+0] = -( Phi[Index( (int)(x[n*3+0]/dx)+1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx)-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n]);
 
                 // y-direction
-                if( x[n*3+1]<dx ){        // -y boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+1] = -( Phi[Index( (int)(x[n*3+0]/dx), 1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), N-1, (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n]);
-                    if( BC==2 ) // isolated
-                        a[n*3+1] = -( Phi[Index( (int)(x[n*3+0]/dx), 1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), 0, (int)(x[n*3+2]/dx) )] ) /(dx*ParM[n]);
-                }
-                else if( x[n*3+1]>L-dx ){ // +y boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+1] = -( Phi[Index( (int)(x[n*3+0]/dx), 0, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), N-2, (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n]);
-                    if( BC==2 ) // isolated
-                        a[n*3+1] = -( Phi[Index( (int)(x[n*3+0]/dx), N-1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), N-2, (int)(x[n*3+2]/dx) )] ) /(dx*ParM[n]);
-                }
-                else // interior
                     a[n*3+1] = -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx)+1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx-1), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n]);
 
                 // z-direction
-                if( x[n*3+2]<dx ){        // -z boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+2] = -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), 1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), N-1 )] ) /(2.0*dx*ParM[n]);
-                    if( BC==2 ) // isolated
-                        a[n*3+2] = -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), 1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), 0 )] ) /(dx*ParM[n]);
-                }
-                else if( x[n*3+2]>L-dx ){ // +z boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+2] = -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), 0 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), N-2 )] ) /(2.0*dx*ParM[n]);
-                    if( BC==2 ) // isolated
-                        a[n*3+2] = -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), N-1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), N-2 )] ) /(dx*ParM[n]);
-                }
-                else // interior
                     a[n*3+2] = -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)+1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)-1 )] ) /(2.0*dx*ParM[n]);
                 }
             }
@@ -316,7 +277,7 @@ void Acceleration( double *x, double *a ){
         else if( Scheme_MD==2 ){  // Cloud-In-Cell
             double weighting[3][2];
             for(int n=0;n<ParN;n++){
-                if( x[n*3+0]>0.5*dx && x[n*3+0]<L-0.5*dx && x[n*3+1]>0.5*dx && x[n*3+1]<L-0.5*dx && x[n*3+2]>0.5*dx && x[n*3+2]<L-0.5*dx ){
+                if( x[n*3+0]>1.5*dx && x[n*3+0]<L-1.5*dx && x[n*3+1]>1.5*dx && x[n*3+1]<L-1.5*dx && x[n*3+2]>1.5*dx && x[n*3+2]<L-1.5*dx ){
 
                 for(int i=0;i<3;i++){ // weighting of distribution
                     weighting[i][1] = (x[n*3+i]/dx-0.5) - (int)(x[n*3+i]/dx-0.5);
@@ -328,51 +289,12 @@ void Acceleration( double *x, double *a ){
                 for(int k=0;k<2;k++){ // get acceleration from 8 cells
 
                 // x-direction
-                if( x[n*3+0]<1.5*dx && i==0 ){        // -x boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+0] += -( Phi[Index( 1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( N-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+0] += -( Phi[Index( 1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( 0, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else if( x[n*3+0]>L-1.5*dx && i==1 ){ // +x boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+0] += -( Phi[Index( 0, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( N-2, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+0] += -( Phi[Index( N-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( N-2, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else // interior
                     a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i+1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k) ] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // y-direction
-                if( x[n*3+1]<1.5*dx && j==0 ){        // -y boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, 1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, N-1, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, 1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, 0, (int)(x[n*3+2]/dx-0.5)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else if( x[n*3+1]>L-1.5*dx && j==1 ){ // +y boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, 0, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, N-2, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, N-1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, N-2, (int)(x[n*3+2]/dx-0.5)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else // interior
                     a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j+1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j-1, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // z-direction
-                if( x[n*3+2]<1.5*dx && k==0 ){        // -z boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, 1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, N-1 )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, 1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, 0 )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else if( x[n*3+2]>L-1.5*dx && k==1 ){ // +z boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, 0 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, N-2 )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, N-1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, N-2 )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else // interior
                     a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k-1 )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
@@ -383,7 +305,7 @@ void Acceleration( double *x, double *a ){
             double weighting[3][3];
             double devide[3];
             for(int n=0;n<ParN;n++){
-                if( x[n*3+0]>1.0*dx && x[n*3+0]<L-1.0*dx && x[n*3+1]>1.0*dx && x[n*3+1]<L-1.0*dx && x[n*3+2]>1.0*dx && x[n*3+2]<L-1.0*dx ){
+                if( x[n*3+0]>2.0*dx && x[n*3+0]<L-2.0*dx && x[n*3+1]>2.0*dx && x[n*3+1]<L-2.0*dx && x[n*3+2]>2.0*dx && x[n*3+2]<L-2.0*dx ){
 
                 for(int i=0;i<3;i++){ // weighting of distribution
                     devide[i]= x[n*3+i]/dx - (int)(x[n*3+i]/dx);//find the distance between n grid and center of particle
@@ -397,52 +319,12 @@ void Acceleration( double *x, double *a ){
                 for(int k=0;k<3;k++){ // get acceleration from 27 cells
 
                 // x-direction
-                if( x[n*3+0]<2.0*dx && i==0 ){        // -x boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+0] += -( Phi[Index( 1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( N-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+0] += -( Phi[Index( 1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( 0, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else if( x[n*3+0]>L-2.0*dx && i==2 ){ // +x boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+0] += -( Phi[Index( 0, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( N-2, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+0] += -( Phi[Index( N-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( N-2, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else // interior
                     a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i+1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // y-direction
-                if( x[n*3+1]<2.0*dx && j==0 ){        // -y boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, 1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, N-1, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, 1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, 0, (int)(x[n*3+2]/dx-1.0)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else if( x[n*3+1]>L-2.0*dx && j==2 ){ // +y boundary
-                   if( BC==1 ) // periodic
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, 0, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, N-2, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, N-1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, N-2, (int)(x[n*3+2]/dx-1.0)+k )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else // interior
                     a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j+1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j-1, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // z-direction
-                if( x[n*3+2]<2.0*dx && k==0 ){        // -z boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, 1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, N-1 )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, 1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, 0 )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                }
-                else if( x[n*3+2]>L-2.0*dx && k==2 ){ // +z boundary
-                    if( BC==1 ) // periodic
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, 0 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, N-2 )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-                    if( BC==2 ) // isolated
-                        a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, N-1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, N-2 )] )/(dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
-
-                }
-                else // interior
                     a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k-1 )] )/(2.0*dx*ParM[n])*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
