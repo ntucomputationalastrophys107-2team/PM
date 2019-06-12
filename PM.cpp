@@ -15,7 +15,7 @@ const double dx = L/N;          // spatial resolution
 const double dt = 1.0;        // time step
 const int    ParN  = 100;         // number of particles
 const double G = 8.489e-10;           // gravitational constant
-const double end_time = 1000.0;   // end time of the evolution
+const double end_time = 500.0;   // end time of the evolution
 //Particle's mass
 static double *ParM = NULL;
 
@@ -101,13 +101,15 @@ void Init( double *x, double *v ){
         }
         //biggest 10 Asteroid's mass
         for(int i=10;i<19;i++){
-                ParM[i] = (double)rand()/(RAND_MAX+1.0)*2*1.189e-5;
+                ParM[i] = (double)rand()/(RAND_MAX)*2*1.189e-5;
         }
         // other asteroids' mass
         for(int i=20;i<ParN;i++){   
-                ParM[i] = (double)rand()/(RAND_MAX + 1.0)*2*(2.763e-4/(ParN-13));
+                ParM[i] = (double)rand()/(RAND_MAX)*2*(2.763e-4/(ParN-13));
         }
         //define variable of Asteroid
+        
+       
         double *phi=NULL;
         double *THETA=NULL;
         double *PHI=NULL;
@@ -123,10 +125,10 @@ void Init( double *x, double *v ){
         v_count = new double[3];//velocity in axis's xyz coordinate
         //set number
         for(int i=10;i<ParN;i++){
-                Radius[i] = (2.0+(double)rand()/(RAND_MAX+1.0)*(3.2-2.0));
-                THETA[i] = 2.0*M_PI*(1.0/12.0)*(double)rand()/(RAND_MAX+1.0);
-                PHI[i] = 2.0*M_PI*(double)rand()/(RAND_MAX+1.0);
-                phi[i] = 2.0*M_PI*(double)rand()/(RAND_MAX+1.0);
+                Radius[i] = (2.0+(double)rand()/(RAND_MAX)*(3.2-2.0));
+                THETA[i] = 2.0*M_PI*(1.0/12.0)*((double)rand()/(RAND_MAX));
+                PHI[i] = 2.0*M_PI*(double)rand()/(RAND_MAX);
+                phi[i] = 2.0*M_PI*(double)rand()/(RAND_MAX);
                 //Matrix_change coordinate
                 Trans_Matrix[0][0] = cos(PHI[i]);
                 Trans_Matrix[0][1] = sin(PHI[i])*cos(THETA[i]);
@@ -140,7 +142,7 @@ void Init( double *x, double *v ){
                 //position in axis's xyz coordinate
                 x_count[0] = Radius[i]*cos(phi[i]);
                 x_count[1] = Radius[i]*sin(phi[i]); 
-                x_count[2] = 0.5*L;
+                x_count[2] = 0.0;
                 v_count[0] =-pow(G*Mass_Sun/Radius[i],0.5)*sin(phi[i]);
                 v_count[1] = pow(G*Mass_Sun/Radius[i],0.5)*cos(phi[i]); 
                 v_count[2] = 0.0;
@@ -149,7 +151,9 @@ void Init( double *x, double *v ){
                         for(int k=0;k<3;k++){
                                 x[i*3+j] =  0.5*L + Trans_Matrix[j][k]*x_count[k];
                                 v[i*3+j] =  Trans_Matrix[j][k] * v_count[k];
-                        }}
+                        }
+                        x[i*3+j]+=0.5*L;
+                        }
         }
         delete [] Radius;
         delete [] phi;
