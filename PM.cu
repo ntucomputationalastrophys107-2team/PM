@@ -37,7 +37,7 @@ const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3
 
 // GPU parallelizaion
 #define BLOCK_SIZE   256
-#define GRID_SIZE    ( (8*N*N*N+BLOCK_SIZE-1)/ BLOCK_SIZE )
+#define GRID_SIZE    ( (8*N*N*N+BLOCK_SIZE-1)/BLOCK_SIZE )
 
 // FUNCTION Init: Set the initial condition
 void Init( double *x, double *v, const int NRank, const int MyRank ){
