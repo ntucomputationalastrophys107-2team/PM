@@ -14,7 +14,7 @@
 
 // constants
 const double L = 1.0;           // length of the 3-D domain box
-const int    N = 64;            // number of grid in each direction
+const int    N = 32;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
 const double dt = 0.001;        // time step
 const int    ParN  = 10;        // number of particles
@@ -24,11 +24,11 @@ static double *ParM = NULL;     // mass of each particle
 const int NThread = 4;          // numer of threads
 
 // schemes
-const int BC = 1;               // boundary condition ( 1=Periodic, 2=Isolated )
-const int Scheme_SG = 2;        // scheme of self-gravity ( 1=PM, 2=DN )
-const int Scheme_MD = 2;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
+const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
+const int Scheme_SG = 1;        // scheme of self-gravity ( 1=PM, 2=DN )
+const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
-const int Scheme_OI = 2;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
+const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
 
 // FUNCTION Init: Set the initial condition
@@ -417,7 +417,8 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
         delete [] Rho;
         delete [] Phi;
     }
-    else if( Scheme_SG==2 && NRank==1 ){  // Direct N-body
+    else if( Scheme_SG==2 ){  // Direct N-body
+    if( NRank!=1 ){ printf( "ERROR: Direct N-body is not supported for NRank!=1\n" ); return;}
 #   pragma omp parallel for num_threads(NThread)
     for(int i=0;i<ParN;i++){
         if( x[i*3+0]>0 && x[i*3+0]<L && x[i*3+1]>0 && x[i*3+1]<L && x[i*3+2]>0 && x[i*3+2]<L ){
@@ -449,7 +450,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
     if( Scheme_OI==1 ){      // Kick-Drift-Kick
         clock_gettime(CLOCK_MONOTONIC, &AC1_start);
         /////////measure start
-        CheckBoundary( x, v );
+        CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
         /////////measure end
         clock_gettime(CLOCK_MONOTONIC, &AC1_end);
@@ -521,7 +522,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         double *rk = new double[4*ParN/NRank*3*2];   // k_n, Par_ID, dim, pos/vel
         clock_gettime(CLOCK_MONOTONIC, &AC1_start);
         /////////measure start
-        CheckBoundary( x, v );
+        CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
         /////////measure end
         clock_gettime(CLOCK_MONOTONIC, &AC1_end);
