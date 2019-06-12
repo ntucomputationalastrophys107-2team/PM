@@ -10,7 +10,7 @@
 //-----------------------------------
 // A Partilce Mesh Code
 // ----------------------------------
-/*  Parallelizaion to be finished */
+
 
 // constants
 const double L = 1.0;           // length of the 3-D domain box
