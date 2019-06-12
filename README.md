@@ -4,11 +4,11 @@ Final Project-IV: Particle Mesh
 
 Compilation:
 
-g++ -o PM PM.cpp -L$(FFTW_PATH)/lib -I$(FFTW_PATH)/include -lfftw3 -lm
+mpicxx -o PM PM.cpp -L$(FFTW_PATH)/lib -I$(FFTW_PATH)/include -lfftw3 -lrt -fopenmp
 
 Execution:
 
-./PM > log
+mpirun -np 2 PM > log
 
 Plot:
 

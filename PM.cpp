@@ -2,7 +2,10 @@
 #include <cstdlib>
 #include <cmath>
 #include <fftw3.h>
+#include <ctime>
+#include <omp.h>
 #include <mpi.h>
+
 
 //-----------------------------------
 // A Partilce Mesh Code
@@ -11,51 +14,73 @@
 
 // constants
 const double L = 1.0;           // length of the 3-D domain box
-const int    N = 32;            // number of grid in each direction
+const int    N = 64;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
 const double dt = 0.001;        // time step
-const int    ParN  = 2;         // number of particles
+const int    ParN  = 10;        // number of particles
 const double G = 1.0;           // gravitational constant
 const double end_time = 10.0;   // end time of the evolution
 static double *ParM = NULL;     // mass of each particle
+const int NThread = 4;          // numer of threads
 
 // schemes
-const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
-const int Scheme_SG = 1;        // scheme of self-gravity ( 1=PM, 2=DN )
-const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
+const int BC = 1;               // boundary condition ( 1=Periodic, 2=Isolated )
+const int Scheme_SG = 2;        // scheme of self-gravity ( 1=PM, 2=DN )
+const int Scheme_MD = 2;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
-const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
+const int Scheme_OI = 2;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
 
 // FUNCTION Init: Set the initial condition
 void Init( double *x, double *v, const int NRank, const int MyRank ){
     /* To be modified for the test problem */
     ParM = new double[ParN];  // all particles
-    ParM[0] = 1.0;
-    ParM[1] = 1.0;
+    srand(100);
     for(int i=0;i<ParN/NRank;i++){
-    x[i*3+0] = 0.25*L+MyRank*0.5*L; // assume NRank==2
-    x[i*3+1] = 0.5*L;
-    x[i*3+2] = 0.5*L;
-    v[i*3+0] = 0.0;
-    v[i*3+1] = 0.01;
-    v[i*3+2] = 1.0-MyRank*2.0;      // assume NRank==2
+        x[i*3+0] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
+        x[i*3+1] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
+        x[i*3+2] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
+        v[i*3+0] = ((double)rand()/RAND_MAX*-0.5)*0.2*L;
+        v[i*3+1] = ((double)rand()/RAND_MAX*-0.5)*0.2*L;
+        v[i*3+2] = ((double)rand()/RAND_MAX*-0.5)*0.2*L;
     }
+    for(int i=0;i<ParN;i++)
+        ParM[i] = 1.0;
 
     return;
 }// FUNCTION Init
 
 
+// FUNCTION timespec diff: Caltulate the time difference
+struct timespec diff( struct timespec start, struct timespec end ){
+    struct timespec temp;
+    if( (end.tv_nsec-start.tv_nsec)<0 ){
+        temp.tv_sec = end.tv_sec-start.tv_sec-1;
+        temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+    }
+    else{
+        temp.tv_sec = end.tv_sec-start.tv_sec;
+        temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+    }
+
+    return temp;
+}// FUNCTION timespec diff
+
+
 // FUNCTION CheckBoundary: Deal with the particles outside the box
 void CheckBoundary( double *x, double *v, const int NRank ){
+#   pragma omp parallel for num_threads(NThread)
     for(int i=0;i<ParN/NRank;i=i+1){
         if( BC==1 ){      // Periodic Boundary Condition
+            int offset;
             for(int d=0;d<3;d=d+1){
                 if( x[i*3+d]<0 ){
-                    x[i*3+d] += L;
+                    offset = (-x[i*3+d])/L;
+                    x[i*3+d] += (offset+1)*L;
                 }
                 if( x[i*3+d]>L ){
-                    x[i*3+d] -= L;
+                    offset = x[i*3+d]/L;
+                    x[i*3+d] -= offset*L;
                 }
             }
         }
@@ -86,20 +111,25 @@ int Index( int i, int j, int k ){
 
 // FUNCTION MassDeposition: Deposit particle mass onto grids
 void MassDeposition( double *x, double *rho, const int NRank, const int MyRank ){
-    for(int i=0;i<N;i++)
-    for(int j=0;j<N;j++)
-    for(int k=0;k<N;k++)
+#   pragma omp parallel for collapse( 3 ) num_threads(NThread)
+    for(int i=0;i<N;i++){
+    for(int j=0;j<N;j++){
+    for(int k=0;k<N;k++){
         rho[Index( i, j, k )] = 0.0;   // initialization as zero
+    }}}
 
     if( Scheme_MD==1 ){       // Nearest-Grid-Point
+#       pragma omp parallel for num_threads(NThread)
         for(int n=0;n<ParN/NRank;n++){
             if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx )
+#           pragma omp critical
             rho[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] += ParM[n+MyRank*ParN/NRank]/(dx*dx*dx);
         } 
     }
     else if( Scheme_MD==2 ){  // Cloud-In-Cell
-        double weighting[3][2];
+#       pragma omp parallel for num_threads(NThread)
         for(int n=0;n<ParN/NRank;n++){
+            double weighting[3][2];
             if( x[n*3+0]>1.5*dx && x[n*3+0]<L-1.5*dx && x[n*3+1]>1.5*dx && x[n*3+1]<L-1.5*dx && x[n*3+2]>1.5*dx && x[n*3+2]<L-1.5*dx ){
 
             for(int i=0;i<3;i++){  // weighting of distribution
@@ -110,16 +140,17 @@ void MassDeposition( double *x, double *rho, const int NRank, const int MyRank )
             for(int i=0;i<2;i++)
             for(int j=0;j<2;j++)
             for(int k=0;k<2;k++) // deposit density into 8 cells
+#               pragma omp critical
                 rho[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] += weighting[0][i]*weighting[1][j]*weighting[2][k]*ParM[n+MyRank*ParN/NRank]/(dx*dx*dx);
             }
-        }            
+        }
     }
     else if( Scheme_MD==3 ){  // Triangular-Shaped-Cloud
-        double weighting[3][3];
-        double devide[3];
+#       pragma omp parallel for num_threads(NThread)
         for(int n=0;n<ParN/NRank;n++){
+            double devide[3];
+            double weighting[3][3];
             if( x[n*3+0]>2.0*dx && x[n*3+0]<L-2.0*dx && x[n*3+1]>2.0*dx && x[n*3+1]<L-2.0*dx && x[n*3+2]>2.0*dx && x[n*3+2]<L-2.0*dx ){
-
             for(int i=0;i<3;i++){  // weighting of distribution
                 devide[i]= x[n*3+i]/dx - (int)(x[n*3+i]/dx);//find the distance between n grid and center of particle
                 weighting[i][0] = pow((1.0-devide[i]),2)*0.5;
@@ -130,9 +161,10 @@ void MassDeposition( double *x, double *rho, const int NRank, const int MyRank )
             for(int i=0;i<3;i++)
             for(int j=0;j<3;j++)
             for(int k=0;k<3;k++) // deposit density into 27 cells
+#               pragma omp critical
                 rho[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] += weighting[0][i]*weighting[1][j]*weighting[2][k]*ParM[n+MyRank*ParN/NRank]/(dx*dx*dx);
             }
-        }            
+        }
     }
 
     return;
@@ -143,9 +175,7 @@ void MassDeposition( double *x, double *rho, const int NRank, const int MyRank )
 void PoissonSolver( double *rho, double *phi ){
     if( BC==1 ){            // Periodic Boundary Condition
         if( Scheme_PS==1 ){ // Fast Fourier Transform
- 
-        double KK;            // K*K = Kx*Kx + Ky*Ky + Kz*Kz
-        int nx, ny;
+
         fftw_complex *rho_K;  // density   in K space
         rho_K = (fftw_complex*) fftw_malloc( N*N*(N/2+1) * sizeof(fftw_complex) );
         fftw_complex *phi_K;  // potential in K space
@@ -156,9 +186,13 @@ void PoissonSolver( double *rho, double *phi ){
         phiKtophiX = fftw_plan_dft_c2r_3d( N, N, N, phi_K, phi, FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
 
         fftw_execute( rhoXtorhoK ); // Fourier Transform from rho(x) to rho(k)
+
+#       pragma omp parallel for collapse( 3 ) num_threads(NThread)
         for(int i=0;i<N;i++){
         for(int j=0;j<N;j++){
         for(int k=0;k<N/2+1;k++){
+            double KK;            // K*K = Kx*Kx + Ky*Ky + Kz*Kz
+            int nx, ny;
             if( i>N/2 ) nx=i-N; else nx=i;
             if( j>N/2 ) ny=j-N; else ny=j;
             KK = (nx*2*M_PI/L)*(nx*2*M_PI/L) + (ny*2*M_PI/L)*(ny*2*M_PI/L) + (k*2*M_PI/L)*(k*2*M_PI/L); // K*K = Kx*Kx + Ky*Ky + Kz*Kz
@@ -181,7 +215,6 @@ void PoissonSolver( double *rho, double *phi ){
     else if( BC==2 ){       // Isolated Boundary Condition
         if( Scheme_PS==1 ){ // Fast Fourier Transform
 
-        int nx,ny,nz;              // number of distance interval
         double *mas_0pad;          // zero padding on the mass array
         mas_0pad = (double*) fftw_malloc( (2*N)*(2*N)*(2*N) * sizeof(double) );
         double *greensfn;          // symmetric discrete Green's function -1/r
@@ -200,9 +233,11 @@ void PoissonSolver( double *rho, double *phi ){
         greXtogreK = fftw_plan_dft_r2c_3d( 2*N, 2*N, 2*N, greensfn, greensfn_K, FFTW_ESTIMATE ); // Fourier Transform from gre(x) to gre(k)
         phiKtophiX = fftw_plan_dft_c2r_3d( 2*N, 2*N, 2*N, phi_0pad_K, phi_0pad, FFTW_ESTIMATE ); // Inverse Fourier Transform from phi(k) to phi(x)
 
+#      pragma omp parallel for collapse( 3 ) num_threads(NThread)
         for(int i=0;i<2*N;i++){
         for(int j=0;j<2*N;j++){
         for(int k=0;k<2*N;k++){
+            int nx,ny,nz;              // number of distance interval
             if( i<N && j<N && k<N ) mas_0pad[k+(2*N)*(j+(2*N)*i)] = rho[Index( i, j, k )]*dx*dx*dx;  // mass of cell = density * cell volume
             else mas_0pad[k+(2*N)*(j+(2*N)*i)] = 0.0;                                       // zero padding
 
@@ -213,19 +248,26 @@ void PoissonSolver( double *rho, double *phi ){
             if( i==0 && j==0 && k==0 ) greensfn[0] = 0.0;  // ignore self force
             else greensfn[k+(2*N)*(j+(2*N)*i)] = -1.0/(dx*sqrt( nx*nx + ny*ny + nz*nz )); // -1/r
         }}}
+
         fftw_execute( masXtomasK ); // Fourier Transform from mas(x) to mas(k)
         fftw_execute( greXtogreK ); // Fourier Transform from gre(x) to gre(k)
+
+#       pragma omp parallel for num_threads(NThread)
         for(int i=0;i<2*N;i++){
         for(int j=0;j<2*N;j++){
         for(int k=0;k<N+1;k++){
             phi_0pad_K[k+(N+1)*(j+(2*N)*i)][0] = G*( mas_0pad_K[k+(N+1)*(j+(2*N)*i)][0]*greensfn_K[k+(N+1)*(j+(2*N)*i)][0]-mas_0pad_K[k+(N+1)*(j+(2*N)*i)][1]*greensfn_K[k+(N+1)*(j+(2*N)*i)][1])*(1.0/(2*N*2*N*2*N));// real part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
             phi_0pad_K[k+(N+1)*(j+(2*N)*i)][1] = G*( mas_0pad_K[k+(N+1)*(j+(2*N)*i)][0]*greensfn_K[k+(N+1)*(j+(2*N)*i)][1]+mas_0pad_K[k+(N+1)*(j+(2*N)*i)][1]*greensfn_K[k+(N+1)*(j+(2*N)*i)][0])*(1.0/(2*N*2*N*2*N));// imag part phi(k) = G*mas(k)*gre(k) and normalize by 1/(2N)^3
         }}}
+
         fftw_execute( phiKtophiX ); // Inverse Fourier Transform from phi(k) to phi(x)
-        for(int i=0;i<N;i++)
-        for(int j=0;j<N;j++)
-        for(int k=0;k<N;k++)
+
+#       pragma omp parallel for collapse( 3 ) num_threads(NThread)
+        for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++){
+        for(int k=0;k<N;k++){
             phi[Index( i, j, k )] = phi_0pad[k+(2*N)*(j+(2*N)*i)]; // remove the padding
+        }}}
 
         fftw_destroy_plan( masXtomasK );
         fftw_destroy_plan( greXtogreK );
@@ -249,6 +291,7 @@ void PoissonSolver( double *rho, double *phi ){
 
 // FUNCTION Acceleration: Calculate the acceleration of each particle
 void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
+#   pragma omp parallel for collapse( 2 ) num_threads(NThread)
     for(int i=0;i<ParN/NRank;i++)
     for(int j=0;j<3;j++)
         a[i*3+j] = 0.0;   // initialization as zero
@@ -256,8 +299,26 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
     if( Scheme_SG==1 ){ // Particle Mesh
         double *Rho = new double[N*N*N]; // density
         double *Phi = new double[N*N*N]; // potential
+        struct timespec MD_start, MD_end, PS_start, PS_end;
+        double MD_time_used, PS_time_used;
+
+        clock_gettime(CLOCK_MONOTONIC, &MD_start);
+        /////////measure start
         MassDeposition( x, Rho, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &MD_end);
+        struct timespec MD_temp = diff(MD_start, MD_end);
+        MD_time_used = MD_temp.tv_sec + (double) MD_temp.tv_nsec / 1000000000.0;
+        printf("MD_Time = %f\n", MD_time_used);
+
+        clock_gettime(CLOCK_MONOTONIC, &PS_start);
+        /////////measure start
         PoissonSolver( Rho, Phi );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &PS_end);
+        struct timespec PS_temp = diff(PS_start, PS_end);
+        PS_time_used = PS_temp.tv_sec + (double) PS_temp.tv_nsec / 1000000000.0;
+        printf("PS_Time = %f\n", PS_time_used);
 
         double *XSendBuf = new double[ParN/NRank*3];  // Buffer for sending x between MPI ranks
         double *ASendBuf = new double[ParN/NRank*3];  // Buffer for sending a between MPI ranks
@@ -265,6 +326,7 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
         for(int rank=0;rank<NRank;rank++){
 
         if( Scheme_MD==1 ){       // Nearest-Grid-Point
+#           pragma omp parallel for num_threads(NThread)
             for(int n=0;n<ParN/NRank;n++){
                 if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx ){
 
@@ -280,8 +342,9 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
             }
         }
         else if( Scheme_MD==2 ){  // Cloud-In-Cell
-            double weighting[3][2];
+#           pragma omp parallel for num_threads(NThread)
             for(int n=0;n<ParN/NRank;n++){
+                double weighting[3][2];
                 if( x[n*3+0]>1.5*dx && x[n*3+0]<L-1.5*dx && x[n*3+1]>1.5*dx && x[n*3+1]<L-1.5*dx && x[n*3+2]>1.5*dx && x[n*3+2]<L-1.5*dx ){
 
                 for(int i=0;i<3;i++){ // weighting of distribution
@@ -307,9 +370,10 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
            }
         }
         else if( Scheme_MD==3 ){  // Triangular-Shaped-Cloud
-            double weighting[3][3];
-            double devide[3];
+#           pragma omp parallel for num_threads(NThread)
             for(int n=0;n<ParN/NRank;n++){
+                double weighting[3][3];
+                double devide[3];
                 if( x[n*3+0]>2.0*dx && x[n*3+0]<L-2.0*dx && x[n*3+1]>2.0*dx && x[n*3+1]<L-2.0*dx && x[n*3+2]>2.0*dx && x[n*3+2]<L-2.0*dx ){
 
                 for(int i=0;i<3;i++){ // weighting of distribution
@@ -354,14 +418,18 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
         delete [] Phi;
     }
     else if( Scheme_SG==2 && NRank==1 ){  // Direct N-body
-    double r;  // distance between two particles
+#   pragma omp parallel for num_threads(NThread)
     for(int i=0;i<ParN;i++){
         if( x[i*3+0]>0 && x[i*3+0]<L && x[i*3+1]>0 && x[i*3+1]<L && x[i*3+2]>0 && x[i*3+2]<L ){
         for(int j=0;j<ParN;j++){
+            double r;  // distance between two particles
             if( i!=j && x[j*3+0]>0 && x[j*3+0]<L && x[j*3+1]>0 && x[j*3+1]<L && x[j*3+2]>0 && x[j*3+2]<L ){
                 r = sqrt( (x[j*3+0]-x[i*3+0])*(x[j*3+0]-x[i*3+0]) + (x[j*3+1]-x[i*3+1])*(x[j*3+1]-x[i*3+1]) + (x[j*3+2]-x[i*3+2])*(x[j*3+2]-x[i*3+2]) );
+#               pragma omp critical
                 a[i*3+0] += G*ParM[j]/(r*r)*(x[j*3+0]-x[i*3+0])/r;
+#               pragma omp critical
                 a[i*3+1] += G*ParM[j]/(r*r)*(x[j*3+1]-x[i*3+1])/r;
+#               pragma omp critical
                 a[i*3+2] += G*ParM[j]/(r*r)*(x[j*3+2]-x[i*3+2])/r;
             }
         }
@@ -376,20 +444,43 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
 // FUNCTION Update: Update the system by dt
 void Update( double *x, double *v, const int NRank, const int MyRank ){
     double *a= new double[ParN/NRank*3];     // acceleration of the particle
+    struct timespec AC1_start, AC1_end, AC2_start, AC2_end, AC3_start, AC3_end, AC4_start, AC4_end;
+    double AC1_time_used, AC2_time_used, AC3_time_used, AC4_time_used;
     if( Scheme_OI==1 ){      // Kick-Drift-Kick
+        clock_gettime(CLOCK_MONOTONIC, &AC1_start);
+        /////////measure start
+        CheckBoundary( x, v );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC1_end);
+        struct timespec AC1_temp = diff(AC1_start, AC1_end);
+        AC1_time_used = AC1_temp.tv_sec + (double) AC1_temp.tv_nsec / 1000000000.0;
+        printf("AC_Time = %f\n", AC1_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 v[i*3+d] += a[i*3+d]*dt/2;
             }
         } // Kick
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 x[i*3+d] += v[i*3+d]*dt;
             }
         } // Drift
+
+        clock_gettime(CLOCK_MONOTONIC, &AC2_start);
+        /////////measure start
         CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC2_end);
+        struct timespec AC2_temp = diff(AC2_start, AC2_end);
+        AC2_time_used = AC2_temp.tv_sec + (double) AC2_temp.tv_nsec / 1000000000.0;
+        printf("AC2_Time = %f\n", AC2_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 v[i*3+d] += a[i*3+d]*dt/2;
@@ -397,18 +488,29 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         } // Kick
     }
     else if( Scheme_OI==2 ){ // Drift-Kick-Drift
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 x[i*3+d] += v[i*3+d]*dt/2;
             }
         } // Drift
+        clock_gettime(CLOCK_MONOTONIC, &AC1_start);
+        /////////measure start
         CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC1_end);
+        struct timespec AC1_temp = diff(AC1_start, AC1_end);
+        AC1_time_used = AC1_temp.tv_sec + (double) AC1_temp.tv_nsec / 1000000000.0;
+        printf("AC_Time = %f\n", AC1_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 v[i*3+d] += a[i*3+d]*dt;
             }
         } // Kick
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 x[i*3+d] += v[i*3+d]*dt/2;
@@ -417,7 +519,17 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
     }
     else if( Scheme_OI==3 ){ // Runge-Kutta 4th
         double *rk = new double[4*ParN/NRank*3*2];   // k_n, Par_ID, dim, pos/vel
+        clock_gettime(CLOCK_MONOTONIC, &AC1_start);
+        /////////measure start
+        CheckBoundary( x, v );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC1_end);
+        struct timespec AC1_temp = diff(AC1_start, AC1_end);
+        AC1_time_used = AC1_temp.tv_sec + (double) AC1_temp.tv_nsec / 1000000000.0;
+        printf("AC_Time = %f\n", AC1_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 rk[((0*ParN/NRank+i)*3+d)*2+0] = v[i*3+d];
@@ -426,8 +538,17 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
                 v[i*3+d] += (dt/2)* rk[((0*ParN/NRank+i)*3+d)*2+1];
             }
         } // Step1
+        clock_gettime(CLOCK_MONOTONIC, &AC2_start);
+        /////////measure start
         CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC2_end);
+        struct timespec AC2_temp = diff(AC2_start, AC2_end);
+        AC2_time_used = AC2_temp.tv_sec + (double) AC2_temp.tv_nsec / 1000000000.0;
+        printf("AC2_Time = %f\n", AC2_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 rk[((1*ParN/NRank+i)*3+d)*2+0] = v[i*3+d];
@@ -436,8 +557,17 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
                 v[i*3+d] += (dt/2)* rk[((1*ParN/NRank+i)*3+d)*2+1] -(dt/2)* rk[((0*ParN/NRank+i)*3+d)*2+1];
             }
         } // Step2
+        clock_gettime(CLOCK_MONOTONIC, &AC3_start);
+        /////////measure start
         CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC3_end);
+        struct timespec AC3_temp = diff(AC3_start, AC3_end);
+        AC3_time_used = AC3_temp.tv_sec + (double) AC3_temp.tv_nsec / 1000000000.0;
+        printf("AC3_Time = %f\n", AC3_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 rk[((2*ParN/NRank+i)*3+d)*2+0] = v[i*3+d];
@@ -446,8 +576,17 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
                 v[i*3+d] += (dt)* rk[((2*ParN/NRank+i)*3+d)*2+1] -(dt/2)* rk[((1*ParN/NRank+i)*3+d)*2+1];
             }
         } // Step3
+        clock_gettime(CLOCK_MONOTONIC, &AC4_start);
+        /////////measure start
         CheckBoundary( x, v, NRank );
         Acceleration( x, a, NRank, MyRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &AC4_end);
+        struct timespec AC4_temp = diff(AC4_start, AC4_end);
+        AC4_time_used = AC4_temp.tv_sec + (double) AC4_temp.tv_nsec / 1000000000.0;
+        printf("AC4_Time = %f\n", AC4_time_used);
+
+#       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
             for(int d=0;d<3;d=d+1){
                 rk[((3*ParN/NRank+i)*3+d)*2+0] = v[i*3+d];
@@ -474,6 +613,7 @@ double Energy( double *x, double *v ){
     double epot = 0.0;       // potentail energy
 
     // kineteic energy
+#   pragma omp parallel for reduction( +:ekin ) num_threads(NThread)
     for(int i=0;i<ParN;i++){
         ekin += 0.5*ParM[i]*( v[i*3+0]*v[i*3+0] + v[i*3+1]+v[i*3+1] + v[i*3+2]*v[i*3+2] );
     }
@@ -483,9 +623,12 @@ double Energy( double *x, double *v ){
     double *Phi = new double[N*N*N]; // potential
     MassDeposition( x, Rho, 1, 0 );  // get density
     PoissonSolver( Rho, Phi );       // get potential
+
+#   pragma omp parallel for collapse( 2 ) num_threads(NThread)
     for(int i=0;i<N;i++){
     for(int j=0;j<N;j++){
     for(int k=0;k<N;k++){
+#       pragma omp critical
         epot += 0.5*Rho[Index( i, j, k )]*Phi[Index( i, j, k )]*dx*dx*dx;
     }}}
     delete [] Rho;
@@ -505,6 +648,7 @@ double Momentum( double *v ){
     double py = 0.0;         // momentum in y-direction
     double pz = 0.0;         // momentum in z-direction
 
+#   pragma omp parallel for reduction( +:px,py,pz ) num_threads(NThread)
     for(int i=0;i<ParN;i++){ // sum over all particles
         px += ParM[i]*v[i*3+0];
         py += ParM[i]*v[i*3+1];
@@ -574,6 +718,8 @@ int main( int argc, char *argv[] ){
     double P0;                // initial momentum |P0|
     double P;                 // moentum |P|
     double Perr;              // momentum conservation error
+    struct timespec UD_start, UD_end; //timer
+    double UD_time_used;
 
     // initialization
     Init( ParX, ParV, NRank, MyRank );
@@ -594,8 +740,15 @@ int main( int argc, char *argv[] ){
     while( t<end_time ){
         if( MyRank==0 )printf("Time: %13.6e -> %13.6e, dt=%f\n", t, t+dt, dt );
 
+        clock_gettime(CLOCK_MONOTONIC, &UD_start);
+        /////////measure start
         Update( ParX, ParV, NRank, MyRank );
         CheckBoundary( ParX, ParV, NRank );
+        /////////measure end
+        clock_gettime(CLOCK_MONOTONIC, &UD_end);
+        struct timespec UD_temp = diff(UD_start, UD_end);
+        UD_time_used = UD_temp.tv_sec + (double) UD_temp.tv_nsec / 1000000000.0;
+        printf("UD_Time = %f\n", UD_time_used);
 
         t = t+dt;
         if( (int)(t/dt)%NRank==0 ){
@@ -625,6 +778,7 @@ int main( int argc, char *argv[] ){
     printf("Number of Particles = %d\n", ParN);
     printf("Number of Grids     = %dx%dx%d\n",N,N,N);
     printf("Number of MPI Ranks = %d\n", NRank);
+    printf("Number of Threads   = %d\n", NThread);
     switch( BC ){
         case 1:
             printf("Boundary Condition  = Periodic\n");
