@@ -120,6 +120,7 @@ void MassDeposition( double *x, double *rho ){
 #       pragma omp parallel for num_threads(NThread)
         for(int n=0;n<ParN;n++){
             if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx )
+
 #           pragma omp critical
             rho[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] += ParM[n]/(dx*dx*dx);
         }
@@ -128,6 +129,7 @@ void MassDeposition( double *x, double *rho ){
 
 #       pragma omp parallel for num_threads(NThread)
         for(int n=0;n<ParN;n++){
+
             double weighting[3][2];
             if( x[n*3+0]>1.5*dx && x[n*3+0]<L-1.5*dx && x[n*3+1]>1.5*dx && x[n*3+1]<L-1.5*dx && x[n*3+2]>1.5*dx && x[n*3+2]<L-1.5*dx ){
 
@@ -343,6 +345,7 @@ void Acceleration( double *x, double *a ){
 
 #           pragma omp parallel for num_threads(NThread)
             for(int n=0;n<ParN;n++){
+
                 double weighting[3][2];
                 if( x[n*3+0]>1.5*dx && x[n*3+0]<L-1.5*dx && x[n*3+1]>1.5*dx && x[n*3+1]<L-1.5*dx && x[n*3+2]>1.5*dx && x[n*3+2]<L-1.5*dx ){
 
@@ -372,6 +375,7 @@ void Acceleration( double *x, double *a ){
 
 #           pragma omp parallel for num_threads(NThread)
             for(int n=0;n<ParN;n++){
+
                 double weighting[3][3];
                 double devide[3];
                 if( x[n*3+0]>2.0*dx && x[n*3+0]<L-2.0*dx && x[n*3+1]>2.0*dx && x[n*3+1]<L-2.0*dx && x[n*3+2]>2.0*dx && x[n*3+2]<L-2.0*dx ){
