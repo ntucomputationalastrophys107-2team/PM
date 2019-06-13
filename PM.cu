@@ -18,7 +18,7 @@
 
 
 // constants
-const double L = 14;           // length of the 3-D domain box
+const double L = 14;            // length of the 3-D domain box
 #define      N   64             // number of grid in each direction
 const double dx = L/N;          // spatial resolution
 const double dt = 12;           // time step
