@@ -14,13 +14,13 @@
 
 
 // constants
-const double L = 12 ;           // length of the 3-D domain box
-const int    N = 32;            // number of grid in each direction
+const double L = 14 ;           // length of the 3-D domain box
+const int    N = 64;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
 const double dt = 12;           // time step
 const int    ParN  = 600;       // number of particles
-const double G = 8.489e-10;     // gravitational constant        //AU = 1.519e+11  M_Earth = 5.972E+24 //const double day = 86400.0
-const double end_time = 45000;  // end time of the evolution
+const double G = 8.9045e-10;      // gravitational constant        //AU = 1.519e+11  M_Earth = 5.972E+24 //const double day = 86400.0
+const double end_time = 60000;  // end time of the evolution
 static double *ParM = NULL;     // mass of each particle
 const int NThread = 1;          // numer of threads
 
@@ -72,21 +72,23 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
 
         if (MyRank==0){
 
-          x[0*3+0] = 0.5*L;
+          double v_rel = pow(G*Mass_Sun/Radius[1],0.5);
+
+          x[0*3+0] = 0.5*L-Radius_Jupiter*(Mass_Jupiter/(Mass_Jupiter+Mass_Sun));
           x[0*3+1] = 0.5*L;
           x[0*3+2] = 0.5*L;
           v[0*3+0] = 0.0;
-          v[0*3+1] = 0.0;
+          v[0*3+1] = -v_rel*(Mass_Jupiter/(Mass_Jupiter+Mass_Sun));
           v[0*3+2] = 0.0;
           //8 Planets' Position and Velocity
           //double Planet_phi[10] = {0.0, M_PI,M_PI/6.0, 2.0*M_PI*260.0/360.0 ,2.0*M_PI*120.0/360.0, 2.0*M_PI*260.0/360.0, 2.0*M_PI*290.0/360.0 ,M_PI/6.0,2.0*M_PI*345.0/360.0, 2.0*M_PI*250.0/360.0 };
-          double Planet_phi[2] = {0.0, 2.0*M_PI*260.0/360.0 };
+          double Planet_phi[2] = {0.0, 0.0};
           for(int i=1;i<2;i++){
-                  x[i*3+0] = 0.5*L + Radius[i]*cos(Planet_phi[i]);
-                  x[i*3+1] = 0.5*L + Radius[i]*sin(Planet_phi[i]);
+                  x[i*3+0] = 0.5*L + Radius_Jupiter*(Mass_Sun/(Mass_Jupiter+Mass_Sun));
+                  x[i*3+1] = 0.5*L;
                   x[i*3+2] = 0.5*L;
-                  v[i*3+0] =-sin(Planet_phi[i])*pow(G*Mass_Sun/Radius[i],0.5);
-                  v[i*3+1] = cos(Planet_phi[i])*pow(G*Mass_Sun/Radius[i],0.5);
+                  v[i*3+0] = 0;
+                  v[i*3+1] = v_rel*(Mass_Sun/(Mass_Jupiter+Mass_Sun));
                   v[i*3+2] = 0.0;
           }
           //biggest 10 Asteroid's mass
@@ -101,7 +103,7 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
 
           for(int i=2;i<ParN/NRank;i++){
 
-                  double Asteroid_Radius = 2.0+rand()/((double)RAND_MAX+1)*(3.2-2.0);
+                  double Asteroid_Radius = 2.0+rand()/((double)RAND_MAX+1)*(3.5-2.0);
                   double THETA = M_PI*(10.0/180.0)*(rand()/(double)RAND_MAX+1);
                   double PHI = 2.0*M_PI*rand()/((double)RAND_MAX+1);
                   double phi = 2.0*M_PI*rand()/((double)RAND_MAX+1);
@@ -125,7 +127,8 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
                                   x[i*3+j]+=  Trans_Matrix[j][k] * x_count[k];
                                   v[i*3+j]+=  Trans_Matrix[j][k] * v_count[k];
                           }
-                          x[i*3+j] = x[i*3+j] + 0.5*L;
+                          x[i*3+j] = x[i*3+j] + x[0*3+j];
+                          v[i*3+j] = v[i*3+j] + v[0*3+j];
                           }
           }
 
