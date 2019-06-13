@@ -13,41 +13,179 @@
 
 
 // constants
-const double L = 1.0;           // length of the 3-D domain box
-const int    N = 32;            // number of grid in each direction
+const double L = 15 ;           // length of the 3-D domain box
+const int    N = 64;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
-const double dt = 0.001;        // time step
-const int    ParN  = 10;        // number of particles
-const double G = 1.0;           // gravitational constant
-const double end_time = 10.0;   // end time of the evolution
+const double dt = 1;            // time step
+const int    ParN  = 500;       // number of particles
+const double G = 8.489e-10;     // gravitational constant        //AU = 1.519e+11  M_Earth = 5.972E+24 //const double day = 86400.0
+const double end_time = 500.0;  // end time of the evolution
 static double *ParM = NULL;     // mass of each particle
 const int NThread = 4;          // numer of threads
 
 // schemes
 const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
 const int Scheme_SG = 1;        // scheme of self-gravity ( 1=PM, 2=DN )
-const int Scheme_MD = 1;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
+const int Scheme_MD = 3;        // scheme of mass deposition ( 1=NGP, 2=CIC, 3=TSC )
 const int Scheme_PS = 1;        // scheme of poisson solver ( 1=FFT )
-const int Scheme_OI = 1;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
+const int Scheme_OI = 3;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3=RK4 )
 
 
 // FUNCTION Init: Set the initial condition
 void Init( double *x, double *v, const int NRank, const int MyRank ){
-    /* To be modified for the test problem */
-    ParM = new double[ParN];  // all particles
-    srand(100*MyRank);
-    for(int i=0;i<ParN/NRank;i++){
-        x[i*3+0] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
-        x[i*3+1] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
-        x[i*3+2] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
-        v[i*3+0] = ((double)rand()/RAND_MAX-0.5)*0.2*L;
-        v[i*3+1] = ((double)rand()/RAND_MAX-0.5)*0.2*L;
-        v[i*3+2] = ((double)rand()/RAND_MAX-0.5)*0.2*L;
-    }
-    for(int i=0;i<ParN;i++)
-        ParM[i] = 1.0;
+        srand(100*MyRank);
 
-    return;
+        //DATA
+        //Mass of 8 planets
+        const double Mass_Sun=333400.0;
+        const double Mass_Mercury = 0.06;
+        const double Mass_Venus = 0.82;
+        const double Mass_Earth = 1.0;
+        const double Mass_Mars = 0.11;
+        const double Mass_Jupiter = 317.8;
+        //const double Mass_Saturn = 95.2;
+        //const double Mass_Uranus = 14.6;
+        //const double Mass_Neptune = 17.2;
+        //const double Mass_Ceres = 1.574e-4;//穀神星
+        //Distance
+        const double Radius_Mercury = 0.39;
+        const double Radius_Venus = 0.72;
+        const double Radius_Earth = 1.0;
+        const double Radius_Mars = 1.52;
+        const double Radius_Jupiter = 5.20;
+        //const double Radius_Saturn = 9.54;
+        //const double Radius_Uranus = 19.22;
+        //const double Radius_Neptune = 30.06;
+        //const double Radius_Ceres = 2.7675;//穀神星
+
+        /* To be modified for the test problem */
+        ParM = new double[ParN];
+        double *Radius = NULL;
+        Radius = new double[10];
+        //Mass of 8 planets
+        ParM[0] = Mass_Sun;
+        ParM[1] = Mass_Mercury;
+        ParM[2] = Mass_Venus;
+        ParM[3] = Mass_Earth;
+        ParM[4] = Mass_Mars;
+        ParM[5] = Mass_Jupiter;
+        //ParM[6] = Mass_Saturn;
+        //ParM[7] = Mass_Uranus;
+        //ParM[8] = Mass_Neptune;
+        //ParM[9] = Mass_Ceres;
+        //Orbit Radius of 8 planets
+        Radius[0] =  0.0;
+        Radius[1] =  Radius_Mercury;
+        Radius[2] =  Radius_Venus;
+        Radius[3] =  Radius_Earth;
+        Radius[4] =  Radius_Mars;
+        Radius[5] =  Radius_Jupiter;
+        //Radius[6] =  Radius_Saturn;
+        //Radius[7] =  Radius_Uranus;
+        //Radius[8] =  Radius_Neptune;
+        //Radius[9] =  Radius_Ceres;//穀神星
+        //Sun's Position and Velocity
+
+        if (MyRank==0){
+
+          x[0*3+0] = 0.5*L;
+          x[0*3+1] = 0.5*L;
+          x[0*3+2] = 0.5*L;
+          v[0*3+0] = 0.0;
+          v[0*3+1] = 0.0;
+          v[0*3+2] = 0.0;
+          //8 Planets' Position and Velocity
+          //double Planet_phi[10] = {0.0, M_PI,M_PI/6.0, 2.0*M_PI*260.0/360.0 ,2.0*M_PI*120.0/360.0, 2.0*M_PI*260.0/360.0, 2.0*M_PI*290.0/360.0 ,M_PI/6.0,2.0*M_PI*345.0/360.0, 2.0*M_PI*250.0/360.0 };
+          double Planet_phi[6] = {0.0, M_PI,M_PI/6.0, 2.0*M_PI*260.0/360.0 ,2.0*M_PI*120.0/360.0, 2.0*M_PI*260.0/360.0 };
+          for(int i=1;i<6;i++){
+                  x[i*3+0] = 0.5*L + Radius[i]*cos(Planet_phi[i]);
+                  x[i*3+1] = 0.5*L + Radius[i]*sin(Planet_phi[i]);
+                  x[i*3+2] = 0.5*L;
+                  v[i*3+0] =-sin(Planet_phi[i])*pow(G*Mass_Sun/Radius[i],0.5);
+                  v[i*3+1] = cos(Planet_phi[i])*pow(G*Mass_Sun/Radius[i],0.5);
+                  v[i*3+2] = 0.0;
+          }
+          //biggest 10 Asteroid's mass
+          for(int i=6 ;i<15;i++){
+                  ParM[i] = (double)rand()/(RAND_MAX)*2*1.189e-5;
+          }
+          // other asteroids' mass
+          for(int i=16;i<ParN/NRank;i++){
+                  ParM[i] = (double)rand()/(RAND_MAX)*2*(2.763e-4/(ParN-13));
+          }
+          //define variable of Asteroid
+
+          for(int i=6;i<ParN/NRank;i++){
+
+                  double Asteroid_Radius = 2.0+rand()/((double)RAND_MAX+1)*(3.2-2.0);
+                  double THETA = M_PI*(10.0/180.0)*(rand()/(double)RAND_MAX+1);
+                  double PHI = 2.0*M_PI*rand()/((double)RAND_MAX+1);
+                  double phi = 2.0*M_PI*rand()/((double)RAND_MAX+1);
+                  //Matrix_change coordinate
+                  double Trans_Matrix[3][3]={0.0};
+                  Trans_Matrix[0][0] = cos(PHI);
+                  Trans_Matrix[0][1] =-sin(PHI)*cos(THETA);
+                  Trans_Matrix[0][2] = sin(PHI)*sin(THETA);
+                  Trans_Matrix[1][0] = sin(PHI);
+                  Trans_Matrix[1][1] = cos(PHI)*cos(THETA);
+                  Trans_Matrix[1][2] =-cos(PHI)*sin(THETA);
+                  Trans_Matrix[2][0] = 0.0;
+                  Trans_Matrix[2][1] = sin(THETA);
+                  Trans_Matrix[2][2] = cos(THETA);
+                  //position in axis's xyz coordinate
+                  double x_count[3] = {Asteroid_Radius*cos(phi), Asteroid_Radius*sin(phi),0.0};
+                  double v_count[3] = {-pow(G*Mass_Sun/Asteroid_Radius,0.5)*sin(phi) , pow(G*Mass_Sun/Asteroid_Radius,0.5)*cos(phi), 0.0};
+                  //position
+                  for(int j=0;j<3;j++){
+                          for(int k=0;k<3;k++){
+                                  x[i*3+j]+=  Trans_Matrix[j][k] * x_count[k];
+                                  v[i*3+j]+=  Trans_Matrix[j][k] * v_count[k];
+                          }
+                          x[i*3+j] = x[i*3+j] + 0.5*L;
+                          }
+          }
+
+        } //if (MyRank==0)
+        else{
+
+          // other asteroids' mass
+          for(int i=0;i<ParN/NRank;i++){
+                  ParM[i] = (double)rand()/(RAND_MAX)*2*(2.763e-4/(ParN-13));
+          }
+          //define variable of Asteroid
+
+          for(int i=0;i<ParN/NRank;i++){
+
+                  double Asteroid_Radius = 2.0+rand()/((double)RAND_MAX+1)*(3.2-2.0);
+                  double THETA = M_PI*(10.0/180.0)*(rand()/(double)RAND_MAX+1);
+                  double PHI = 2.0*M_PI*rand()/((double)RAND_MAX+1);
+                  double phi = 2.0*M_PI*rand()/((double)RAND_MAX+1);
+                  //Matrix_change coordinate
+                  double Trans_Matrix[3][3]={0.0};
+                  Trans_Matrix[0][0] = cos(PHI);
+                  Trans_Matrix[0][1] =-sin(PHI)*cos(THETA);
+                  Trans_Matrix[0][2] = sin(PHI)*sin(THETA);
+                  Trans_Matrix[1][0] = sin(PHI);
+                  Trans_Matrix[1][1] = cos(PHI)*cos(THETA);
+                  Trans_Matrix[1][2] =-cos(PHI)*sin(THETA);
+                  Trans_Matrix[2][0] = 0.0;
+                  Trans_Matrix[2][1] = sin(THETA);
+                  Trans_Matrix[2][2] = cos(THETA);
+                  //position in axis's xyz coordinate
+                  double x_count[3] = {Asteroid_Radius*cos(phi), Asteroid_Radius*sin(phi),0.0};
+                  double v_count[3] = {-pow(G*Mass_Sun/Asteroid_Radius,0.5)*sin(phi) , pow(G*Mass_Sun/Asteroid_Radius,0.5)*cos(phi), 0.0};
+                  //position
+                  for(int j=0;j<3;j++){
+                          for(int k=0;k<3;k++){
+                                  x[i*3+j]+=  Trans_Matrix[j][k] * x_count[k];
+                                  v[i*3+j]+=  Trans_Matrix[j][k] * v_count[k];
+                          }
+                          x[i*3+j] = x[i*3+j] + 0.5*L;
+                          }
+          }
+        }
+
+        return;
 }// FUNCTION Init
 
 
@@ -124,7 +262,7 @@ void MassDeposition( double *x, double *rho, const int NRank, const int MyRank )
             if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx )
 #           pragma omp critical
             rho[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] += ParM[n+MyRank*ParN/NRank]/(dx*dx*dx);
-        } 
+        }
     }
     else if( Scheme_MD==2 ){  // Cloud-In-Cell
 #       pragma omp parallel for num_threads(NThread)
@@ -309,7 +447,7 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &MD_end);
         struct timespec MD_temp = diff(MD_start, MD_end);
         MD_time_used = MD_temp.tv_sec + (double) MD_temp.tv_nsec / 1000000000.0;
-        printf("MD_Time = %f\n", MD_time_used);
+//        printf("MD_Time = %f\n", MD_time_used);
 
         clock_gettime(CLOCK_MONOTONIC, &PS_start);
         /////////measure start
@@ -318,7 +456,7 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &PS_end);
         struct timespec PS_temp = diff(PS_start, PS_end);
         PS_time_used = PS_temp.tv_sec + (double) PS_temp.tv_nsec / 1000000000.0;
-        printf("PS_Time = %f\n", PS_time_used);
+//        printf("PS_Time = %f\n", PS_time_used);
 
         double *XSendBuf = new double[ParN/NRank*3];  // Buffer for sending x between MPI ranks
         double *ASendBuf = new double[ParN/NRank*3];  // Buffer for sending a between MPI ranks
@@ -456,7 +594,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC1_end);
         struct timespec AC1_temp = diff(AC1_start, AC1_end);
         AC1_time_used = AC1_temp.tv_sec + (double) AC1_temp.tv_nsec / 1000000000.0;
-        printf("AC_Time = %f\n", AC1_time_used);
+//        printf("AC1_Time = %f\n", AC1_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -479,7 +617,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC2_end);
         struct timespec AC2_temp = diff(AC2_start, AC2_end);
         AC2_time_used = AC2_temp.tv_sec + (double) AC2_temp.tv_nsec / 1000000000.0;
-        printf("AC2_Time = %f\n", AC2_time_used);
+//        printf("AC2_Time = %f\n", AC2_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -503,7 +641,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC1_end);
         struct timespec AC1_temp = diff(AC1_start, AC1_end);
         AC1_time_used = AC1_temp.tv_sec + (double) AC1_temp.tv_nsec / 1000000000.0;
-        printf("AC_Time = %f\n", AC1_time_used);
+//        printf("AC1_Time = %f\n", AC1_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -528,7 +666,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC1_end);
         struct timespec AC1_temp = diff(AC1_start, AC1_end);
         AC1_time_used = AC1_temp.tv_sec + (double) AC1_temp.tv_nsec / 1000000000.0;
-        printf("AC_Time = %f\n", AC1_time_used);
+//        printf("AC1_Time = %f\n", AC1_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -547,7 +685,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC2_end);
         struct timespec AC2_temp = diff(AC2_start, AC2_end);
         AC2_time_used = AC2_temp.tv_sec + (double) AC2_temp.tv_nsec / 1000000000.0;
-        printf("AC2_Time = %f\n", AC2_time_used);
+//        printf("AC2_Time = %f\n", AC2_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -566,7 +704,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC3_end);
         struct timespec AC3_temp = diff(AC3_start, AC3_end);
         AC3_time_used = AC3_temp.tv_sec + (double) AC3_temp.tv_nsec / 1000000000.0;
-        printf("AC3_Time = %f\n", AC3_time_used);
+//        printf("AC3_Time = %f\n", AC3_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -585,7 +723,7 @@ void Update( double *x, double *v, const int NRank, const int MyRank ){
         clock_gettime(CLOCK_MONOTONIC, &AC4_end);
         struct timespec AC4_temp = diff(AC4_start, AC4_end);
         AC4_time_used = AC4_temp.tv_sec + (double) AC4_temp.tv_nsec / 1000000000.0;
-        printf("AC4_Time = %f\n", AC4_time_used);
+//        printf("AC4_Time = %f\n", AC4_time_used);
 
 #       pragma omp parallel for collapse( 2 ) num_threads(NThread)
         for(int i=0;i<ParN/NRank;i=i+1){
@@ -749,7 +887,7 @@ int main( int argc, char *argv[] ){
         clock_gettime(CLOCK_MONOTONIC, &UD_end);
         struct timespec UD_temp = diff(UD_start, UD_end);
         UD_time_used = UD_temp.tv_sec + (double) UD_temp.tv_nsec / 1000000000.0;
-        printf("UD_Time = %f\n", UD_time_used);
+//        printf("UD_Time = %f\n", UD_time_used);
 
         t = t+dt;
         if( (int)(t/dt)%NRank==0 ){
