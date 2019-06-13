@@ -50,7 +50,7 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
         x[i*3+2] = (double)rand()/RAND_MAX*0.5*L+0.25*L;
         v[i*3+0] = ((double)rand()/RAND_MAX-0.5)*0.2*L;
         v[i*3+1] = ((double)rand()/RAND_MAX-0.5)*0.2*L;
-        v[i*3+2] = ((double)rand()/RAND_MA-0.5)*0.2*L;
+        v[i*3+2] = ((double)rand()/RAND_MAX-0.5)*0.2*L;
     }
     for(int i=0;i<ParN;i++)
         ParM[i] = 1.0;
