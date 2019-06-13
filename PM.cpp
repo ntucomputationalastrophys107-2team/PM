@@ -33,7 +33,6 @@ const int Scheme_OI = 3;        // scheme of orbit integration ( 1=KDK, 2=DKD, 3
 
 // FUNCTION Init: Set the initial condition
 void Init( double *x, double *v, const int NRank, const int MyRank ){
-
         srand(100*MyRank);
 
         //DATA
@@ -470,13 +469,13 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
                 if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx ){
 
                 // x-direction
-                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx)+1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx)-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank]);
+                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx)+1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx)-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx);
 
                 // y-direction
-                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx)+1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx-1), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank]);
+                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx)+1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx-1), (int)(x[n*3+2]/dx) )] ) /(2.0*dx);
 
                 // z-direction
-                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)+1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)-1 )] ) /(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank]);
+                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)+1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)-1 )] ) /(2.0*dx);
                 }
             }
         }
@@ -496,13 +495,13 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
                 for(int k=0;k<2;k++){ // get acceleration from 8 cells
 
                 // x-direction
-                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i+1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k) ] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i+1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k) ] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // y-direction
-                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j+1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j-1, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j+1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j-1, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // z-direction
-                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k-1 )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k-1 )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
               }
@@ -527,13 +526,13 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
                 for(int k=0;k<3;k++){ // get acceleration from 27 cells
 
                 // x-direction
-                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i+1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i+1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // y-direction
-                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j+1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j-1, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j+1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j-1, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // z-direction
-                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k-1 )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k-1 )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
                 }
@@ -545,7 +544,7 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
             ASendBuf[i] = a[i];
         }
         MPI_Isend( XSendBuf, ParN/NRank*3, MPI_DOUBLE, (MyRank+NRank+1)%NRank, 123, MPI_COMM_WORLD, &Request[0] ); // send x to RHS Rank
-        MPI_Isend( ASendBuf, ParN/NRank*3, MPI_DOUBLE, (MyRank+NRank+1)%NRank, 456, MPI_COMM_WORLD, &Request[0] ); // send a to RHS Rank
+        MPI_Isend( ASendBuf, ParN/NRank*3, MPI_DOUBLE, (MyRank+NRank+1)%NRank, 456, MPI_COMM_WORLD, &Request[1] ); // send a to RHS Rank
         MPI_Recv( x, ParN/NRank*3, MPI_DOUBLE, (MyRank+NRank-1)%NRank, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE );   // recv x from LHS Rank
         MPI_Recv( a, ParN/NRank*3, MPI_DOUBLE, (MyRank+NRank-1)%NRank, 456, MPI_COMM_WORLD, MPI_STATUS_IGNORE );   // recv a from LHS Rank
 
