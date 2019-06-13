@@ -6,8 +6,8 @@ import matplotlib.animation as animation
 
 PlotMode = 1 ## (mode 1: directly plot, mode 2: save to movie)
 ViewMode = 2 ## (mode 1: with trajactory, mode 2: without trajactory)
-ps = 8  #particle size of view, only for ViewMode = 2
-L = 1    ## size of the BoxSize
+ps = 1  #particle size of view, only for ViewMode = 2
+L = 14    ## size of the BoxSize
 filename = "Data_ParticlePosition"
 delay = 0.1  ###delay between the nearby frames
 
@@ -48,7 +48,7 @@ else:
     lines = [ax.plot(dat[0, 0:1], dat[1, 0:1], dat[2, 0:1],'ro',ms=ps)[0] for dat in data]
 
 def update_lines(num, dataLines, lines ):
-    text.set_text( 't = %6.3f s' % PlotData[0, num] )
+    text.set_text( 't = %6.3f d' % PlotData[0, num] )
     for line, data in zip(lines, dataLines):
         # NOTE: there is no .set_data() for 3 dim data...
         if ViewMode == 1:
@@ -62,13 +62,16 @@ def update_lines(num, dataLines, lines ):
 # Setting the axes properties
 
 ax.set_xlim3d([0.0, L])
+#ax.set_xlim3d([15, 25])
 ax.set_xlabel('X')
 ax.set_ylim3d([0.0, L])
+#ax.set_ylim3d([15, 25])
 ax.set_ylabel('Y')
 ax.set_zlim3d([0.0, L])
+#ax.set_zlim3d([15, 25])
 ax.set_zlabel('Z')
 ax.set_aspect( 'equal' )
-ax.set_title('Particle Trajectory')
+ax.set_title('Asteroid')
 
 # Creating the Animation object
 
