@@ -12,16 +12,17 @@
 // ----------------------------------
 
 
+
 // constants
-const double L = 15 ;           // length of the 3-D domain box
-const int    N = 64;            // number of grid in each direction
+const double L = 12 ;           // length of the 3-D domain box
+const int    N = 32;            // number of grid in each direction
 const double dx = L/N;          // spatial resolution
-const double dt = 1;            // time step
-const int    ParN  = 500;       // number of particles
+const double dt = 12;           // time step
+const int    ParN  = 600;       // number of particles
 const double G = 8.489e-10;     // gravitational constant        //AU = 1.519e+11  M_Earth = 5.972E+24 //const double day = 86400.0
-const double end_time = 500.0;  // end time of the evolution
+const double end_time = 45000;  // end time of the evolution
 static double *ParM = NULL;     // mass of each particle
-const int NThread = 4;          // numer of threads
+const int NThread = 1;          // numer of threads
 
 // schemes
 const int BC = 2;               // boundary condition ( 1=Periodic, 2=Isolated )
@@ -43,7 +44,7 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
         const double Mass_Venus = 0.82;
         const double Mass_Earth = 1.0;
         const double Mass_Mars = 0.11;
-        const double Mass_Jupiter = 317.8;
+        const double Mass_Jupiter = 317.8*5;
         //const double Mass_Saturn = 95.2;
         //const double Mass_Uranus = 14.6;
         //const double Mass_Neptune = 17.2;
@@ -62,30 +63,12 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
         /* To be modified for the test problem */
         ParM = new double[ParN];
         double *Radius = NULL;
-        Radius = new double[10];
+        Radius = new double[2];
         //Mass of 8 planets
         ParM[0] = Mass_Sun;
-        ParM[1] = Mass_Mercury;
-        ParM[2] = Mass_Venus;
-        ParM[3] = Mass_Earth;
-        ParM[4] = Mass_Mars;
-        ParM[5] = Mass_Jupiter;
-        //ParM[6] = Mass_Saturn;
-        //ParM[7] = Mass_Uranus;
-        //ParM[8] = Mass_Neptune;
-        //ParM[9] = Mass_Ceres;
-        //Orbit Radius of 8 planets
+        ParM[1] = Mass_Jupiter;
         Radius[0] =  0.0;
-        Radius[1] =  Radius_Mercury;
-        Radius[2] =  Radius_Venus;
-        Radius[3] =  Radius_Earth;
-        Radius[4] =  Radius_Mars;
-        Radius[5] =  Radius_Jupiter;
-        //Radius[6] =  Radius_Saturn;
-        //Radius[7] =  Radius_Uranus;
-        //Radius[8] =  Radius_Neptune;
-        //Radius[9] =  Radius_Ceres;//穀神星
-        //Sun's Position and Velocity
+        Radius[1] =  Radius_Jupiter;
 
         if (MyRank==0){
 
@@ -97,8 +80,8 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
           v[0*3+2] = 0.0;
           //8 Planets' Position and Velocity
           //double Planet_phi[10] = {0.0, M_PI,M_PI/6.0, 2.0*M_PI*260.0/360.0 ,2.0*M_PI*120.0/360.0, 2.0*M_PI*260.0/360.0, 2.0*M_PI*290.0/360.0 ,M_PI/6.0,2.0*M_PI*345.0/360.0, 2.0*M_PI*250.0/360.0 };
-          double Planet_phi[6] = {0.0, M_PI,M_PI/6.0, 2.0*M_PI*260.0/360.0 ,2.0*M_PI*120.0/360.0, 2.0*M_PI*260.0/360.0 };
-          for(int i=1;i<6;i++){
+          double Planet_phi[2] = {0.0, 2.0*M_PI*260.0/360.0 };
+          for(int i=1;i<2;i++){
                   x[i*3+0] = 0.5*L + Radius[i]*cos(Planet_phi[i]);
                   x[i*3+1] = 0.5*L + Radius[i]*sin(Planet_phi[i]);
                   x[i*3+2] = 0.5*L;
@@ -107,16 +90,16 @@ void Init( double *x, double *v, const int NRank, const int MyRank ){
                   v[i*3+2] = 0.0;
           }
           //biggest 10 Asteroid's mass
-          for(int i=6 ;i<15;i++){
+          for(int i=2 ;i<12;i++){
                   ParM[i] = (double)rand()/(RAND_MAX)*2*1.189e-5;
           }
           // other asteroids' mass
-          for(int i=16;i<ParN/NRank;i++){
+          for(int i=12;i<ParN/NRank;i++){
                   ParM[i] = (double)rand()/(RAND_MAX)*2*(2.763e-4/(ParN-13));
           }
           //define variable of Asteroid
 
-          for(int i=6;i<ParN/NRank;i++){
+          for(int i=2;i<ParN/NRank;i++){
 
                   double Asteroid_Radius = 2.0+rand()/((double)RAND_MAX+1)*(3.2-2.0);
                   double THETA = M_PI*(10.0/180.0)*(rand()/(double)RAND_MAX+1);
@@ -470,13 +453,13 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
                 if( x[n*3+0]>dx && x[n*3+0]<L-dx && x[n*3+1]>dx && x[n*3+1]<L-dx && x[n*3+2]>dx && x[n*3+2]<L-dx ){
 
                 // x-direction
-                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx)+1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx)-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank]);
+                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx)+1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx)-1, (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx) )] ) /(2.0*dx);
 
                 // y-direction
-                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx)+1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx-1), (int)(x[n*3+2]/dx) )] ) /(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank]);
+                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx)+1, (int)(x[n*3+2]/dx) )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx-1), (int)(x[n*3+2]/dx) )] ) /(2.0*dx);
 
                 // z-direction
-                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)+1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)-1 )] ) /(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank]);
+                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)+1 )] - Phi[Index( (int)(x[n*3+0]/dx), (int)(x[n*3+1]/dx), (int)(x[n*3+2]/dx)-1 )] ) /(2.0*dx);
                 }
             }
         }
@@ -496,13 +479,13 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
                 for(int k=0;k<2;k++){ // get acceleration from 8 cells
 
                 // x-direction
-                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i+1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k) ] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i+1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i-1, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k) ] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // y-direction
-                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j+1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j-1, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j+1, (int)(x[n*3+2]/dx-0.5)+k )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j-1, (int)(x[n*3+2]/dx-0.5)+k )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // z-direction
-                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k-1 )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-0.5)+i, (int)(x[n*3+1]/dx-0.5)+j, (int)(x[n*3+2]/dx-0.5)+k-1 )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
               }
@@ -527,13 +510,13 @@ void Acceleration( double *x, double *a, const int NRank, const int MyRank ){
                 for(int k=0;k<3;k++){ // get acceleration from 27 cells
 
                 // x-direction
-                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i+1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+0] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i+1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i-1, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // y-direction
-                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j+1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j-1, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+1] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j+1, (int)(x[n*3+2]/dx-1.0)+k )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j-1, (int)(x[n*3+2]/dx-1.0)+k )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 // z-direction
-                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k-1 )] )/(2.0*dx*ParM[n+((MyRank+rank)%NRank)*ParN/NRank])*weighting[0][i]*weighting[1][j]*weighting[2][k];
+                    a[n*3+2] += -( Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k+1 )] - Phi[Index( (int)(x[n*3+0]/dx-1.0)+i, (int)(x[n*3+1]/dx-1.0)+j, (int)(x[n*3+2]/dx-1.0)+k-1 )] )/(2.0*dx)*weighting[0][i]*weighting[1][j]*weighting[2][k];
 
                 }}}
                 }
